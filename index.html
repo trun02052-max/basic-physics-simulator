@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Newton's Laws — Interactive Simulator</title>
+<style>
+  :root{
+    --bg:#070a12;
+    --bg2:#0d1424;
+    --panel:rgba(18,26,45,.72);
+    --panel-solid:#111a2e;
+    --line:rgba(120,150,210,.16);
+    --line-strong:rgba(130,170,255,.34);
+    --txt:#e6edf8;
+    --muted:#93a4c4;
+    --accent:#4dd4ff;
+    --accent2:#a970ff;
+    --good:#3ddc97;
+    --warn:#ffb547;
+    --bad:#ff6b81;
+    --magenta:#ff5cc8;
+    --radius:16px;
+    --shadow:0 18px 50px rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Segoe UI",Inter,system-ui,-apple-system,Roboto,sans-serif;
+    color:var(--txt);
+    background:
+      radial-gradient(1100px 700px at 12% -10%, rgba(77,212,255,.14), transparent 60%),
+      radial-gradient(900px 650px at 95% 0%, rgba(169,112,255,.16), transparent 62%),
+      radial-gradient(800px 700px at 60% 120%, rgba(61,220,151,.08), transparent 60%),
+      linear-gradient(180deg,#070a12,#0a0f1c 60%,#070a12);
+    overflow:hidden;
+  }
+  .app{height:100%;display:flex;flex-direction:column}
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;align-items:center;gap:16px;padding:12px 20px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(14,22,40,.9),rgba(10,16,30,.55));
+    backdrop-filter:blur(14px);
+    z-index:20;flex:0 0 auto;
+  }
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}
+  .logo{
+    width:40px;height:40px;border-radius:12px;flex:0 0 auto;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:grid;place-items:center;font-size:20px;
+    box-shadow:0 0 22px rgba(77,212,255,.45);
+  }
+  .brand h1{font-size:17px;letter-spacing:.3px;font-weight:650;white-space:nowrap}
+  .brand p{font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .tabs{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+  .navgroup{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .tabs + .navgroup{margin-left:0}
+  .navlink{
+    display:flex;align-items:center;gap:8px;text-decoration:none;
+    padding:9px 15px;border-radius:11px;font-size:12.5px;font-weight:600;
+    border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--muted);
+    transition:.18s;white-space:nowrap;
+  }
+  .navlink:hover{color:var(--txt);border-color:var(--line-strong);transform:translateY(-1px);
+    box-shadow:0 6px 18px rgba(77,212,255,.18)}
+  .tab{
+    position:relative;display:flex;align-items:center;gap:8px;
+    padding:9px 15px;border-radius:11px;cursor:pointer;
+    border:1px solid var(--line);background:rgba(255,255,255,.03);
+    color:var(--muted);font-size:13px;font-weight:600;transition:.18s;
+  }
+  .tab .num{
+    width:20px;height:20px;border-radius:6px;display:grid;place-items:center;
+    font-size:11px;background:rgba(255,255,255,.08);color:var(--txt);
+  }
+  .tab:hover{color:var(--txt);border-color:var(--line-strong);transform:translateY(-1px)}
+  .tab.active{
+    color:#04121c;background:linear-gradient(135deg,var(--accent),#8ad9ff);
+    border-color:transparent;box-shadow:0 6px 20px rgba(77,212,255,.35);
+  }
+  .tab.active .num{background:rgba(0,0,0,.22);color:#04121c}
+
+  /* ---------- layout ---------- */
+  main{
+    flex:1 1 auto;display:grid;grid-template-columns:310px minmax(0,1fr) 330px;
+    grid-template-rows:minmax(0,1fr);
+    gap:14px;padding:14px;min-height:0;
+  }
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);backdrop-filter:blur(16px);
+    overflow-y:auto;overflow-x:hidden;padding:16px;min-height:0;
+  }
+  .panel::-webkit-scrollbar,.stage::-webkit-scrollbar{width:9px}
+  .panel::-webkit-scrollbar-thumb,.stage::-webkit-scrollbar-thumb{background:rgba(120,160,230,.22);border-radius:9px}
+  .panel::-webkit-scrollbar-track{background:transparent}
+
+  /* ---------- stage ---------- */
+  .stage{
+    position:relative;border-radius:var(--radius);overflow:hidden;
+    border:1px solid var(--line);box-shadow:var(--shadow);min-height:0;
+    background:linear-gradient(180deg,rgba(12,20,36,.55),rgba(8,13,24,.75));
+  }
+  #scene{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+  .stage-badge{
+    position:absolute;top:14px;left:16px;display:flex;gap:8px;align-items:center;
+    font-size:11.5px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase;
+    background:rgba(7,11,20,.6);border:1px solid var(--line);padding:6px 12px;border-radius:20px;
+    backdrop-filter:blur(6px);pointer-events:none;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 10px var(--good);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .legend{
+    position:absolute;left:16px;bottom:14px;display:flex;flex-wrap:wrap;gap:6px;max-width:82%;
+  }
+  .chip{
+    display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--txt);
+    background:rgba(9,14,26,.78);border:1px solid var(--line);
+    padding:6px 9px;border-radius:9px;backdrop-filter:blur(6px);
+  }
+  .chip .swatch{width:14px;height:3px;border-radius:2px}
+  .stage-hint{
+    position:absolute;right:16px;bottom:14px;font-size:11.5px;color:var(--muted);
+    background:rgba(9,14,26,.78);border:1px solid var(--line);padding:7px 12px;border-radius:10px;
+    backdrop-filter:blur(6px);
+  }
+  .stage-hint b{color:var(--accent)}
+
+  /* ---------- widgets ---------- */
+  h2.sec{
+    font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);
+    margin:2px 0 12px;display:flex;align-items:center;gap:8px;
+  }
+  h2.sec::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line-strong),transparent)}
+  h2.sec:not(:first-of-type){margin-top:22px}
+  .card{
+    background:rgba(255,255,255,.035);border:1px solid var(--line);
+    border-radius:13px;padding:13px;margin-bottom:12px;
+  }
+  .card p{font-size:12.5px;color:var(--muted);line-height:1.55}
+  .card p + p{margin-top:8px}
+  .card strong{color:var(--txt);font-weight:600}
+  .formula{
+    font-family:"Cascadia Code",Consolas,ui-monospace,monospace;
+    background:linear-gradient(135deg,rgba(77,212,255,.12),rgba(169,112,255,.12));
+    border:1px solid var(--line-strong);border-radius:9px;padding:10px 12px;
+    text-align:center;font-size:15px;color:#eaf6ff;margin:10px 0 2px;letter-spacing:.5px;
+  }
+  .formula small{display:block;font-size:10.5px;color:var(--muted);margin-top:5px;letter-spacing:.3px}
+
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+  .row label{font-size:12.5px;color:var(--muted);font-weight:500}
+  .row .val{
+    font-family:"Cascadia Code",Consolas,monospace;font-size:12.5px;color:var(--accent);
+    background:rgba(77,212,255,.1);border:1px solid var(--line);padding:2px 8px;border-radius:7px;
+    min-width:74px;text-align:right;
+  }
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:5px;
+    background:linear-gradient(90deg,var(--accent) var(--p,50%),rgba(255,255,255,.11) var(--p,50%));
+    outline:none;margin:4px 0 14px;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:#fff;box-shadow:0 0 0 4px rgba(77,212,255,.28),0 2px 6px rgba(0,0,0,.5);cursor:grab;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:16px;height:16px;border:none;border-radius:50%;background:#fff;
+    box-shadow:0 0 0 4px rgba(77,212,255,.28);cursor:grab;
+  }
+  .btn{
+    border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--txt);
+    padding:8px 12px;border-radius:10px;font-size:12.5px;font-weight:600;cursor:pointer;
+    transition:.16s;font-family:inherit;
+  }
+  .btn:hover{border-color:var(--line-strong);background:rgba(255,255,255,.09);transform:translateY(-1px)}
+  .btn:active{transform:translateY(0)}
+  .btn.primary{
+    background:linear-gradient(135deg,var(--accent),#7fb8ff);color:#04121c;border-color:transparent;
+    box-shadow:0 6px 18px rgba(77,212,255,.3);
+  }
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .btns .btn{flex:1 1 auto}
+  .toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0}
+  .toggle span{font-size:12.5px;color:var(--muted)}
+  .sw{position:relative;width:40px;height:22px;flex:0 0 auto;cursor:pointer}
+  .sw input{opacity:0;width:0;height:0;position:absolute}
+  .sw i{
+    position:absolute;inset:0;border-radius:22px;background:rgba(255,255,255,.1);
+    border:1px solid var(--line);transition:.2s;
+  }
+  .sw i::after{
+    content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+    background:#8ea3c6;transition:.2s;
+  }
+  .sw input:checked + i{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent}
+  .sw input:checked + i::after{transform:translateX(18px);background:#fff}
+
+  /* readouts */
+  .metric{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:9px 11px;border-radius:10px;background:rgba(255,255,255,.035);
+    border:1px solid var(--line);margin-bottom:7px;
+  }
+  .metric .k{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:7px}
+  .metric .v{font-family:"Cascadia Code",Consolas,monospace;font-size:14px;font-weight:600}
+  .metric .u{font-size:10.5px;color:var(--muted);margin-left:3px;font-weight:400}
+  .verdict{
+    border-radius:12px;padding:12px 13px;font-size:12.5px;line-height:1.6;
+    border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted);
+  }
+  .verdict b{color:var(--txt)}
+  .verdict.good{border-color:rgba(61,220,151,.4);background:rgba(61,220,151,.09)}
+  .verdict.warn{border-color:rgba(255,181,71,.4);background:rgba(255,181,71,.09)}
+  .verdict.info{border-color:var(--line-strong);background:linear-gradient(135deg,rgba(77,212,255,.1),rgba(169,112,255,.08))}
+  #graph{width:100%;height:150px;display:block;border-radius:11px;background:rgba(6,10,20,.55);border:1px solid var(--line)}
+  .glegend{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px;font-size:11.5px;color:var(--muted)}
+  .glegend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  .kbd{font-family:Consolas,monospace;font-size:11px;background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:var(--txt)}
+
+  /* info popover */
+  .info{
+    position:fixed;z-index:100;width:290px;max-width:88vw;
+    background:linear-gradient(160deg,#16203a,#0e1526);
+    border:1px solid var(--line-strong);border-radius:14px;box-shadow:0 22px 60px rgba(0,0,0,.7);
+    padding:14px;display:none;animation:pop .16s ease-out;
+  }
+  @keyframes pop{from{opacity:0;transform:translateY(-6px) scale(.97)}to{opacity:1;transform:none}}
+  .info.show{display:block}
+  .info h4{font-size:13px;margin-bottom:7px;display:flex;align-items:center;gap:8px}
+  .info p{font-size:12.2px;color:var(--muted);line-height:1.6}
+  .info .fml{
+    font-family:Consolas,monospace;font-size:13px;color:var(--accent);margin:9px 0;
+    background:rgba(77,212,255,.09);border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center;
+  }
+  .info .close{position:absolute;top:8px;right:10px;font-size:16px;color:var(--muted);cursor:pointer;line-height:1}
+  .info .close:hover{color:var(--txt)}
+  .qbtn{
+    width:17px;height:17px;border-radius:50%;flex:0 0 auto;cursor:pointer;
+    border:1px solid var(--line-strong);background:rgba(77,212,255,.14);color:var(--accent);
+    font-size:10.5px;font-weight:700;display:grid;place-items:center;padding:0;font-family:inherit;
+    transition:.15s;
+  }
+  .qbtn:hover{background:var(--accent);color:#04121c;box-shadow:0 0 12px rgba(77,212,255,.6)}
+
+  @media (max-width:1180px){
+    body{overflow:auto}
+    main{grid-template-columns:1fr;grid-template-rows:auto;height:auto}
+    .panel{max-height:none}
+    .stage{height:60vh;min-height:380px}
+  }
+  @media (max-width:640px){
+    header{flex-wrap:wrap}
+    .tabs{width:100%;margin-left:0}
+    .tab{padding:8px 11px;font-size:12px}
+    .navgroup{width:100%;margin-left:0}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="logo">⚛</div>
+      <div>
+        <h1>Newton's Laws Simulator</h1>
+        <p>Interactive physics lab · F = ma</p>
+      </div>
+    </div>
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-mode="one"><span class="num">I</span> Inertia</div>
+      <div class="tab" data-mode="two"><span class="num">II</span> F = ma</div>
+      <div class="tab" data-mode="three"><span class="num">III</span> Action–Reaction</div>
+    </div>
+    <div class="navgroup">
+      <a class="navlink" href="circular.html">◠ Circular motion</a>
+      <a class="navlink" href="cyclotron.html">🧲 Cyclotron simulator →</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============ LEFT: controls ============ -->
+    <aside class="panel" id="controls"></aside>
+
+    <!-- ============ CENTER: stage ============ -->
+    <section class="stage">
+      <canvas id="scene"></canvas>
+      <div class="stage-badge"><span class="dot"></span><span id="badge">LAW I · INERTIA</span></div>
+      <div class="legend" id="legend"></div>
+      <div class="stage-hint" id="hint"></div>
+    </section>
+
+    <!-- ============ RIGHT: readouts + info ============ -->
+    <aside class="panel" id="readouts"></aside>
+  </main>
+</div>
+
+<div class="info" id="info">
+  <span class="close" id="infoClose">×</span>
+  <h4 id="infoTitle"></h4>
+  <div class="fml" id="infoFml"></div>
+  <p id="infoBody"></p>
+</div>
+
+<script>
+/* =====================================================================
+   Newton's Laws Simulator
+   Pure HTML / CSS / JS. Units: metres, kilograms, seconds, newtons.
+   ===================================================================== */
+
+const G = 9.81;              // gravitational acceleration, m/s^2
+const PX = 62;               // pixels per metre
+const BOUNDS = { w: 1000, h: 560 }; // logical canvas size, rescaled on resize
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+
+/* ---------------------------------------------------------------- state */
+const S = {
+  mode: 'one',
+  t: 0,
+  playing: true,
+  speed: 1,
+  show: { vectors: true, trail: true, labels: true, net: true },
+  f1: { body: null, mu: 0, trail: [], net: 0 },
+  f2: { body: null, Fx: 0, Fy: 0, mu: 0.25, drag: null, net: { x: 0, y: 0 }, info: null },
+  f3: { a: null, b: null, e: 1, contact: 0, w: 1.3, h: 0.7, m0: { a: 0, b: 0 }, k0: { a: 0, b: 0 } },
+  hist: { t: [], a: [], b: [] },
+  dragging: false
+};
+
+/* ------------------------------------------------------------ popovers */
+const INFO = {
+  I: { t: "Newton's First Law — Inertia", f: "ΣF = 0  ⇒  a = 0  ⇒  v = constant",
+       b: "An object at rest stays at rest, and an object in motion keeps moving at constant velocity in a straight line — unless a <em>net external force</em> acts on it. The block below glides across a frictionless floor: gravity is cancelled by the normal force, so the net force is zero and its velocity never changes. Turn friction on and a real net force appears, so the block slows down — the law is never broken, it is just no longer isolated." },
+  II: { t: "Newton's Second Law — F = ma", f: "ΣF = m · a     a = F_net / m",
+        b: "The acceleration of a body is directly proportional to the net force and inversely proportional to its mass. Double the force, double the acceleration. Double the mass, halve the acceleration. Vectors matter: forces point in different directions are <em>added</em>, so the resultant may be much smaller than the largest arrow on screen. Watch the blue acceleration arrow track F_net / m live." },
+  III: { t: "Newton's Third Law — Pairs", f: "F₁₂ = −F₂₁   (ΣF = 0 for the pair)",
+        b: "For every action there is an equal and opposite reaction, and these two forces act on <em>different bodies</em> — so they never cancel inside a single free-body diagram, and they cannot change the pair's overall motion. The cyan arrows are the contact forces the two blocks exert on each other: identical in magnitude, opposite in direction. Total momentum is always conserved." },
+  applied: { t: "Applied Force (F)", f: "F = m · a",
+             b: "The push or pull you supply. In this lab it is set with the slider, or by <b>dragging directly on the block</b> — the length of the drag sets the magnitude, the direction of the drag sets the direction." },
+  accel: { t: "Acceleration (a)", f: "a = ΣF / m",
+           b: "The rate of change of velocity, measured in m/s². Its arrow points along the net force and its length is drawn to the same scale as the force arrows, so you can read the ratio directly." },
+  velocity: { t: "Velocity (v)", f: "v = Δx / Δt",
+              b: "How fast the body moves along its path, in m/s. The green arrow is the instantaneous velocity — it is not a force and it does not push the block around; it only reports where the block is going." },
+  gravity: { t: "Weight (W = m·g)", f: "W = m · g,   g = 9.81 m/s²",
+             b: "The gravitational pull of the Earth on the body, always straight down. On a horizontal floor the normal force cancels it exactly, which is why a coasting block does not sink." },
+  normal: { t: "Normal Force (N)", f: "N = m · g  (flat floor)",
+            b: "The contact force the floor pushes up on the body, perpendicular to the surface. On a flat floor it exactly cancels the weight. Push the block <em>downward</em> and N grows, which increases friction." },
+  friction: { t: "Kinetic Friction (fₖ)", f: "fₖ = μ · N",
+              b: "A resistive force opposing the sliding, proportional to the normal force via the friction coefficient μ. It always does negative work: kinetic energy is converted into heat. With μ = 0 the floor is frictionless." },
+  contact: { t: "Contact Force (action–reaction)", f: "F₁₂ = −F₂₁",
+             b: "During the collision each block pushes the other just as hard as it is pushed back. Equal magnitude, opposite direction, acting on different bodies. Their sum on the system is zero, so momentum is conserved." },
+  momentum: { t: "Momentum (p)", f: "p = m · v,   Σp = constant",
+              b: "The total momentum of the two blocks is the same before and after the collision. The individual blocks change momentum — the impulse — but they hand it to each other." },
+  energy: { t: "Kinetic Energy (Eₖ)", f: "Eₖ = ½ m v²",
+            b: "With a perfectly elastic collision (e = 1) both momentum <em>and</em> kinetic energy are conserved. Set e below 1 and momentum is still conserved, but some energy turns into heat and sound — the tell-tale sign of an inelastic collision." }
+};
+
+const pop = document.getElementById('info');
+let popOpen = false, popAnchor = null;
+function placePop() {
+  if (!popOpen || !popAnchor) return;
+  if (!popAnchor.isConnected) { hideInfo(); return; }
+  const r = popAnchor.getBoundingClientRect();
+  const pw = 290, ph = pop.offsetHeight;
+  let left = r.left - pw - 12, top = r.top - 8;
+  if (left < 10) left = r.right + 12;
+  if (left + pw > innerWidth - 10) left = innerWidth - pw - 10;
+  if (top + ph > innerHeight - 10) top = Math.max(10, innerHeight - ph - 10);
+  if (top < 10) top = 10;
+  pop.style.left = left + 'px'; pop.style.top = top + 'px';
+}
+function showInfo(key, anchor) {
+  const d = INFO[key]; if (!d) return;
+  document.getElementById('infoTitle').textContent = d.t;
+  document.getElementById('infoFml').textContent = d.f;
+  document.getElementById('infoBody').innerHTML = d.b;
+  pop.classList.add('show'); popOpen = true; popAnchor = anchor;
+  placePop();
+}
+function hideInfo() { pop.classList.remove('show'); popOpen = false; popAnchor = null; }
+window.addEventListener('scroll', placePop, true);
+window.addEventListener('resize', placePop);
+document.getElementById('infoClose').onclick = hideInfo;
+document.addEventListener('click', e => {
+  if (popOpen && !pop.contains(e.target) && !e.target.closest('.qbtn')) hideInfo();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideInfo(); });
+function infoBtn(key) { return `<button class="qbtn" data-info="${key}" title="What is this?">?</button>`; }
+document.addEventListener('click', e => {
+  const b = e.target.closest('.qbtn');
+  if (b) { e.stopPropagation(); if (popOpen && pop.dataset.k === b.dataset.info) { hideInfo(); } else { pop.dataset.k = b.dataset.info; showInfo(b.dataset.info, b); } }
+});
+
+/* --------------------------------------------------------- control maker */
+function slider(id, label, min, max, step, val, unit) {
+  return `<div class="row"><label>${label}</label><span class="val" id="${id}_v">${val}${unit ? ' ' + unit : ''}</span></div>
+  <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}">`;
+}
+function bindSlider(id, unit, fmt, after) {
+  const el = document.getElementById(id), out = document.getElementById(id + '_v');
+  const paint = () => {
+    const p = (el.value - el.min) / (el.max - el.min) * 100;
+    el.style.setProperty('--p', p + '%');
+    const v = parseFloat(el.value);
+    out.textContent = (fmt ? fmt(v) : v) + (unit ? ' ' + unit : '');
+    if (after) after(v);
+  };
+  el.addEventListener('input', paint); paint();
+}
+function toggle(id, label, checked) {
+  return `<label class="toggle"><span>${label}</span><span class="sw"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''}><i></i></span></label>`;
+}
+
+/* =================================================================== */
+/*  MODE I — INERTIA                                                   */
+/* =================================================================== */
+function setupOne() {
+  S.f1.mu = 0; S.f1.trail = [];
+  S.f1.body = { m: 2, w: 1.2, h: 0.6, x: 1.4, y: 0.3, vx: 7, vy: 0, ax: 0 };
+  S.hist = { t: [], a: [], b: [] };
+}
+function stepOne(dt) {
+  const b = S.f1.body;
+  const fk = S.f1.mu * b.m * G;
+  const net = b.vx > 0 ? -fk : (b.vx < 0 ? fk : 0);
+  b.ax = net / b.m;
+  b.vx += b.ax * dt;
+  if (S.f1.mu > 0 && Math.abs(b.vx) < 0.05) b.vx = 0;
+  b.x += b.vx * dt;
+  if (b.x > MAX_X()) { b.x = MAX_X(); b.vx = -Math.abs(b.vx); }
+  if (b.x < 0.4) { b.x = 0.4; b.vx = Math.abs(b.vx); }
+  S.f1.net = net;
+  if (S.show.trail) { S.f1.trail.push(b.x); if (S.f1.trail.length > 900) S.f1.trail.shift(); }
+}
+
+/* =================================================================== */
+/*  MODE II — F = ma                                                    */
+/* =================================================================== */
+function setupTwo() {
+  S.f2.body = { m: 2, w: 1.2, h: 0.6, x: 2.2, y: 0.3, vx: 0, vy: 0, ax: 0, ay: 0 };
+  S.f2.Fx = 10; S.f2.Fy = 0; S.f2.mu = 0.25; S.f2.drag = null;
+  S.hist = { t: [], a: [], b: [] };
+}
+function stepTwo(dt) {
+  const b = S.f2.body, c = S.f2;
+  const W = b.m * G;
+  let Fy = c.Fy, Fx = c.Fx;
+  if (c.drag) { Fx += c.drag.fx; Fy += c.drag.fy; }
+
+  const Fy_net = Fy - W;
+  const grounded = (b.y <= 0.0001) && (Fy_net <= 0);
+  const N = grounded ? Math.max(0, -Fy_net) : 0;
+  const speed = Math.hypot(b.vx, b.vy);
+  const onFloor = grounded && Math.abs(b.vx) > 0.02;
+  const fk = onFloor ? c.mu * N * Math.sign(b.vx) : 0;
+
+  const Fx_net = Fx - fk;
+  b.ax = Fx_net / b.m;
+  b.ay = Fy_net / b.m;
+
+  b.vx += b.ax * dt; b.vy += b.ay * dt;
+  b.x += b.vx * dt; b.y += b.vy * dt;
+
+  if (b.y <= 0) { b.y = 0; b.vy = 0; }
+  if (b.x < 0.4) { b.x = 0.4; b.vx = 0; }
+  if (b.x > MAX_X()) { b.x = MAX_X(); b.vx = -Math.abs(b.vx); }
+
+  c.net = { x: Fx_net, y: Fy_net };
+  c.info = { N, fk, W, Fx, Fy, ax: b.ax, ay: b.ay, speed };
+}
+
+/* =================================================================== */
+/*  MODE III — ACTION / REACTION                                       */
+/* =================================================================== */
+function setupThree() {
+  const R = MAX_X();
+  S.f3.a = { m: 2, x: 1.0, vx: 8, color: '#4dd4ff', label: 'A' };
+  S.f3.b = { m: 5, x: clamp(R * 0.55, 3, 12), vx: 0, color: '#a970ff', label: 'B' };
+  S.f3.h = 0.7; S.f3.w = 1.3; S.f3.e = 1; S.f3.contact = 0;
+  S.hist = { t: [], a: [], b: [] };
+  S.f3.m0 = { a: S.f3.a.m * S.f3.a.vx, b: S.f3.b.m * S.f3.b.vx };
+  S.f3.k0 = { a: 0.5 * S.f3.a.m * S.f3.a.vx ** 2, b: 0.5 * S.f3.b.m * S.f3.b.vx ** 2 };
+}
+function stepThree(dt) {
+  const { a, b, w } = S.f3;
+  if (S.f3.contact > 0) S.f3.contact -= dt;
+  a.x += a.vx * dt; b.x += b.vx * dt;
+  const overlap = (a.x + w) - (b.x - w);
+  if (overlap > 0 && (a.vx > b.vx)) {
+    a.x -= overlap / 2; b.x += overlap / 2;
+    const m1 = a.m, m2 = b.m, u1 = a.vx, u2 = b.vx, e = S.f3.e;
+
+    // perfectly elastic 1-D result
+    const v1 = ((m1 - m2) * u1 + 2 * m2 * u2) / (m1 + m2);
+    const v2 = ((m2 - m1) * u2 + 2 * m1 * u1) / (m1 + m2);
+
+    // interpolate towards the common velocity (centre-of-mass frame) by 1-e
+    const vCom = (m1 * u1 + m2 * u2) / (m1 + m2);
+    a.vx = v1 * e + vCom * (1 - e);
+    b.vx = v2 * e + vCom * (1 - e);
+
+    S.f3.contact = 0.35;
+  }
+  if (a.x < 0.6) { a.x = 0.6; a.vx = 0; }
+  if (b.x > MAX_X()) { b.x = MAX_X(); b.vx = 0; }
+}
+
+/* =================================================================== */
+/*  PANEL BUILDERS                                                      */
+/* =================================================================== */
+const elControls = document.getElementById('controls');
+const elRead = document.getElementById('readouts');
+const elBadge = document.getElementById('badge');
+const elHint = document.getElementById('hint');
+const elLegend = document.getElementById('legend');
+
+const globalSwitches = `
+  <div class="card">
+    <h2 class="sec" style="margin-bottom:6px">World options</h2>
+    ${toggle('sw_vec', 'Show force / velocity vectors', true)}
+    ${toggle('sw_lab', 'Show labels on stage', true)}
+    ${toggle('sw_trail', 'Show motion trail', true)}
+  </div>`;
+const transport = `
+  <div class="card">
+    <h2 class="sec" style="margin-bottom:6px">Transport</h2>
+    <div class="btns">
+      <button class="btn primary" id="btnPlay">⏸ Pause</button>
+      <button class="btn" id="btnReset">↺ Reset</button>
+    </div>
+    ${slider('spd', 'Simulation speed', 0.1, 2, 0.1, 1, '×')}
+  </div>`;
+
+function buildPanels() {
+  if (S.mode === 'one') {
+    elControls.innerHTML = `
+      <h2 class="sec">Law I · The setup ${infoBtn('I')}</h2>
+      <div class="card">
+        <p>A <strong>2 kg</strong> block is launched at <strong>7 m/s</strong> on a horizontal floor. Gravity and the normal force cancel, so the net force is zero and the block coasts.</p>
+        <div class="formula">ΣF = 0 → a = 0 → v = 7 m/s (constant)</div>
+      </div>
+      ${slider('mu1', 'Floor friction μ', 0, 0.5, 0.01, 0, '')}
+      <div class="card">
+        <p>${infoBtn('friction')} <strong>μ = 0</strong> is a frictionless floor: the block never slows down. Raise μ and friction appears as a real net force — the block decelerates, which is exactly what the law predicts.</p>
+      </div>
+      <div class="btns" style="margin-bottom:12px">
+        <button class="btn" data-preset="frictionless">Frictionless</button>
+        <button class="btn" data-preset="ice">Light friction</button>
+        <button class="btn" data-preset="rough">Rough floor</button>
+      </div>
+      ${transport}${globalSwitches}`;
+
+    elRead.innerHTML = `
+      <h2 class="sec">Live measurements</h2>
+      <div id="m1"></div>
+      <h2 class="sec">Velocity over time ${infoBtn('velocity')}</h2>
+      <canvas id="graph"></canvas>
+      <div class="glegend"><span><i style="background:#3ddc97"></i>velocity v (m/s)</span></div>
+      <h2 class="sec">Verdict</h2>
+      <div class="verdict info" id="v1"></div>`;
+  }
+
+  if (S.mode === 'two') {
+    elControls.innerHTML = `
+      <h2 class="sec">Law II · The setup ${infoBtn('II')}</h2>
+      <div class="card">
+        <p>Set a mass and a force, and watch the block respond. <strong>Drag the block itself</strong> to apply your own force — pull it around the floor.</p>
+        <div class="formula">a = ΣF / m</div>
+      </div>
+      ${slider('m2', 'Mass m', 0.5, 20, 0.5, 2, 'kg')}
+      ${slider('f2', 'Applied force Fₓ', -40, 40, 1, 10, 'N')}
+      ${slider('f2y', 'Applied force F_y (↑ positive)', -40, 60, 1, 0, 'N')}
+      ${slider('mu2', 'Floor friction μ', 0, 1, 0.01, 0.25, '')}
+      <div class="btns" style="margin-bottom:12px">
+        <button class="btn" data-preset="newton">3 N on 2 kg</button>
+        <button class="btn" data-preset="double">Double the force</button>
+        <button class="btn" data-preset="mass">Double the mass</button>
+        <button class="btn" data-preset="stop">Stop it</button>
+      </div>
+      ${transport}${globalSwitches}`;
+
+    elRead.innerHTML = `
+      <h2 class="sec">Free-body diagram</h2>
+      <div id="m2"></div>
+      <h2 class="sec">Motion graph ${infoBtn('accel')}</h2>
+      <canvas id="graph"></canvas>
+      <div class="glegend">
+        <span><i style="background:#4dd4ff"></i>acceleration a (m/s²)</span>
+        <span><i style="background:#3ddc97"></i>velocity v (m/s)</span>
+      </div>
+      <h2 class="sec">Verdict</h2>
+      <div class="verdict info" id="v2"></div>`;
+  }
+
+  if (S.mode === 'three') {
+    elControls.innerHTML = `
+      <h2 class="sec">Law III · The setup ${infoBtn('III')}</h2>
+      <div class="card">
+        <p>Block <strong>A (cyan)</strong> slides into block <strong>B (violet)</strong>. Every force they exert on each other appears as an equal-and-opposite pair.</p>
+        <div class="formula">F<sub>A→B</sub> = −F<sub>B→A</sub></div>
+      </div>
+      ${slider('m3a', 'Mass of A', 0.5, 15, 0.5, 2, 'kg')}
+      ${slider('m3b', 'Mass of B', 0.5, 15, 0.5, 5, 'kg')}
+      ${slider('v3a', 'Initial speed of A', -10, 10, 0.5, 8, 'm/s')}
+      ${slider('rest', 'Restitution e  (1 = elastic)', 0, 1, 0.05, 1, '')}
+      <div class="card">${infoBtn('energy')} With <strong>e = 1</strong> the collision is perfectly elastic: momentum <em>and</em> kinetic energy are conserved. Lower e to see an inelastic collision — momentum is still conserved, but energy is lost to heat and sound.</div>
+      <div class="btns" style="margin-bottom:12px">
+        <button class="btn" data-preset="head">Head-on</button>
+        <button class="btn" data-preset="heavy">Heavy A</button>
+        <button class="btn" data-preset="stick">Nearly perfectly inelastic</button>
+      </div>
+      ${transport}${globalSwitches}`;
+
+    elRead.innerHTML = `
+      <h2 class="sec">During &amp; after the collision</h2>
+      <div id="m3"></div>
+      <h2 class="sec">Velocities ${infoBtn('momentum')}</h2>
+      <canvas id="graph"></canvas>
+      <div class="glegend">
+        <span><i style="background:#4dd4ff"></i>block A</span>
+        <span><i style="background:#a970ff"></i>block B</span>
+      </div>
+      <h2 class="sec">Conservation check</h2>
+      <div class="verdict info" id="v3"></div>`;
+  }
+
+  elLegend.innerHTML = legendFor(S.mode);
+  renderMetrics('m1', ROWS.one);
+  renderMetrics('m2', ROWS.two);
+  renderMetrics('m3', ROWS.three);
+  for (const k in CELLS) delete CELLS[k];
+  wire();
+}
+
+function legendFor(mode) {
+  const chip = (color, label, key) =>
+    `<div class="chip"><span class="swatch" style="background:${color}"></span>${label}${infoBtn(key)}</div>`;
+  let html = '';
+  if (mode === 'one') {
+    html = chip('#ff6b81', 'Weight', 'gravity') + chip('#4dd4ff', 'Normal', 'normal') +
+           chip('#ffb547', 'Friction', 'friction') + chip('#3ddc97', 'Velocity', 'velocity') + chip('#a970ff', 'Acceleration', 'accel');
+  } else if (mode === 'two') {
+    html = chip('#ff6b81', 'Applied F', 'applied') + chip('#ff5cc8', 'Friction', 'friction') +
+           chip('#3ddc97', 'Velocity', 'velocity') + chip('#4dd4ff', 'Acceleration', 'accel') +
+           chip('#c9d4ea', 'Net ΣF', 'accel') + chip('#a970ff', 'Weight &amp; Normal', 'normal');
+  } else {
+    html = chip('#4dd4ff', 'Contact force on B', 'contact') + chip('#a970ff', 'Contact force on A', 'contact') +
+           chip('#3ddc97', 'Velocity', 'velocity') + chip('#ffb547', 'Momentum', 'momentum');
+  }
+  return html;
+}
+
+/* ------------------------------------------------------------- wiring */
+function wire() {
+  const q = id => document.getElementById(id);
+
+  if (S.mode === 'one') {
+    bindSlider('mu1', '', v => v.toFixed(2), v => S.f1.mu = v);
+    bindSlider('spd', '×', v => v.toFixed(1), v => S.speed = v);
+  }
+  if (S.mode === 'two') {
+    bindSlider('m2', 'kg', v => v.toFixed(1), v => { S.f2.body.m = v; });
+    bindSlider('f2', 'N', v => v.toFixed(0), v => { S.f2.Fx = v; S.f2.drag = null; });
+    bindSlider('f2y', 'N', v => v.toFixed(0), v => { S.f2.Fy = v; S.f2.drag = null; });
+    bindSlider('mu2', '', v => v.toFixed(2), v => S.f2.mu = v);
+    bindSlider('spd', '×', v => v.toFixed(1), v => S.speed = v);
+  }
+  if (S.mode === 'three') {
+    bindSlider('m3a', 'kg', v => v.toFixed(1), v => S.f3.a.m = v);
+    bindSlider('m3b', 'kg', v => v.toFixed(1), v => S.f3.b.m = v);
+    bindSlider('v3a', 'm/s', v => v.toFixed(1), v => { S.f3.a.vx = v; resetHist(); });
+    bindSlider('rest', '', v => v.toFixed(2), v => S.f3.e = v);
+    bindSlider('spd', '×', v => v.toFixed(1), v => S.speed = v);
+  }
+
+  const bind = (id, key) => { const e = q(id); if (e) e.addEventListener('change', () => S.show[key] = e.checked); };
+  bind('sw_vec', 'vectors'); bind('sw_lab', 'labels'); bind('sw_trail', 'trail');
+
+  q('btnPlay').onclick = () => {
+    S.playing = !S.playing;
+    q('btnPlay').textContent = S.playing ? '⏸ Pause' : '▶ Play';
+  };
+  q('btnReset').onclick = () => reset();
+
+  document.querySelectorAll('[data-preset]').forEach(btn => {
+    btn.onclick = () => { preset(btn.dataset.preset); };
+  });
+}
+
+function resetHist() { S.hist = { t: [], a: [], b: [] }; }
+
+function preset(name) {
+  const set = (id, val) => { const e = document.getElementById(id); if (e) { e.value = val; e.dispatchEvent(new Event('input')); } };
+  if (S.mode === 'one') {
+    if (name === 'frictionless') { set('mu1', 0); }
+    if (name === 'ice') { set('mu1', 0.08); }
+    if (name === 'rough') { set('mu1', 0.35); }
+    resetHist();
+  }
+  if (S.mode === 'two') {
+    if (name === 'newton') { set('m2', 2); set('f2', 3); set('f2y', 0); set('mu2', 0); S.f2.body.vx = 0; }
+    if (name === 'double') { set('f2', 20); }
+    if (name === 'mass') { set('m2', 4); set('f2', 10); }
+    if (name === 'stop') { S.f2.body.vx = 0; }
+    resetHist();
+  }
+  if (S.mode === 'three') {
+    if (name === 'head') { setupThree(); document.getElementById('m3a').value = 2; document.getElementById('m3b').value = 5; document.getElementById('v3a').value = 8; document.getElementById('rest').value = 1; wire(); }
+    if (name === 'heavy') { setupThree(); const a = document.getElementById('m3a'), b = document.getElementById('m3b'), v = document.getElementById('v3a'); a.value = 12; b.value = 2; v.value = 8; document.getElementById('rest').value = 1; wire(); }
+    if (name === 'stick') { const e = document.getElementById('rest'); e.value = 0.05; e.dispatchEvent(new Event('input')); }
+  }
+}
+
+function reset() {
+  S.t = 0; resetHist();
+  if (S.mode === 'one') setupOne();
+  if (S.mode === 'two') setupTwo();
+  if (S.mode === 'three') setupThree();
+  buildPanels();
+}
+
+/* =================================================================== */
+/*  CANVAS RENDERING                                                    */
+/* =================================================================== */
+const cv = document.getElementById('scene');
+const ctx = cv.getContext('2d');
+let W = 1000, H = 560, groundY = 470;
+
+function resize() {
+  const r = cv.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = r.width; H = r.height;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  groundY = H - 70;
+}
+window.addEventListener('resize', resize);
+
+const SX = x => 40 + x * PX;             // world x (m) -> screen px
+const SY = y => groundY - y * PX;       // world y (m, up) -> screen px
+const MAX_X = () => Math.max(5, (W - 40) / PX - 0.8);   // right wall, in metres
+
+function drawGrid() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(120,150,210,.075)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x * PX + 40 < W; x++) {
+    ctx.beginPath(); ctx.moveTo(40 + x * PX, 0); ctx.lineTo(40 + x * PX, groundY); ctx.stroke();
+  }
+  for (let y = 0; y * PX < groundY; y++) {
+    ctx.beginPath(); ctx.moveTo(0, groundY - y * PX); ctx.lineTo(W, groundY - y * PX); ctx.stroke();
+  }
+  // ground
+  const g = ctx.createLinearGradient(0, groundY, 0, groundY + 14);
+  g.addColorStop(0, 'rgba(77,212,255,.30)'); g.addColorStop(1, 'rgba(77,212,255,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, groundY, W, 14);
+  ctx.strokeStyle = 'rgba(77,212,255,.5)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, groundY + .5); ctx.lineTo(W, groundY + .5); ctx.stroke();
+  for (let x = 0; x * 26 < W; x += 26) {
+    ctx.strokeStyle = 'rgba(77,212,255,.16)';
+    ctx.beginPath(); ctx.moveTo(x, groundY + 16); ctx.lineTo(x - 9, groundY + 30); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function arrow(x1, y1, x2, y2, color, width, dashed) {
+  const a = Math.atan2(y2 - y1, x2 - x1);
+  const len = Math.hypot(x2 - x1, y2 - y1);
+  if (len < 1.5) return;
+  ctx.save();
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width;
+  ctx.lineCap = 'round';
+  if (dashed) ctx.setLineDash([7, 6]);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.setLineDash([]);
+  const hs = Math.max(7, width * 3.2);
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hs * Math.cos(a - 0.4), y2 - hs * Math.sin(a - 0.4));
+  ctx.lineTo(x2 - hs * Math.cos(a + 0.4), y2 - hs * Math.sin(a + 0.4));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function tag(x, y, text, color) {
+  ctx.save();
+  ctx.font = '600 11.5px "Segoe UI",sans-serif';
+  const w = ctx.measureText(text).width + 12;
+  ctx.fillStyle = 'rgba(7,11,20,.82)';
+  ctx.strokeStyle = color; ctx.lineWidth = 1;
+  roundRect(x - w / 2, y - 10, w, 19, 6); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function glowBlock(cx, cy, w, h, color, label, sub) {
+  ctx.save();
+  ctx.shadowColor = color; ctx.shadowBlur = 22;
+  const g = ctx.createLinearGradient(0, cy - h / 2, 0, cy + h / 2);
+  g.addColorStop(0, color + 'dd'); g.addColorStop(1, color + '77');
+  ctx.fillStyle = g; roundRect(cx - w / 2, cy - h / 2, w, h, 9); ctx.fill();
+  ctx.restore();
+  ctx.save();
+  ctx.strokeStyle = '#eaf6ffaa'; ctx.lineWidth = 1.5;
+  roundRect(cx - w / 2, cy - h / 2, w, h, 9); ctx.stroke();
+  if (S.show.labels) {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#04121c';
+    ctx.font = '800 15px "Segoe UI",sans-serif';
+    ctx.fillText(label, cx, cy - 2);
+    if (sub) { ctx.font = '600 10.5px "Segoe UI",sans-serif'; ctx.fillStyle = '#04121ccc'; ctx.fillText(sub, cx, cy + 13); }
+  }
+  ctx.restore();
+}
+
+/* scale: 1 N  ->  px, chosen so arrows stay readable */
+const F_PX = 3.0, V_PX = 9.0, A_PX = 9.0;
+
+function drawOne() {
+  const b = S.f1.body;
+  if (S.show.trail) {
+    ctx.save(); ctx.fillStyle = 'rgba(61,220,151,.5)';
+    S.f1.trail.forEach((x, i) => {
+      if (i % 3) return;
+      ctx.globalAlpha = (i / S.f1.trail.length) * .65;
+      ctx.beginPath(); ctx.arc(SX(x), SY(b.y) - b.h * PX / 2 - 16, 2.2, 0, 7); ctx.fill();
+    });
+    ctx.restore();
+  }
+  const cx = SX(b.x), cy = SY(b.y);
+  const V = { w: b.w * PX, h: b.h * PX };
+  if (S.show.vectors) {
+    // weight
+    arrow(cx - V.w * .22, cy, cx - V.w * .22, cy + b.m * G * F_PX, '#ff6b81', 2.4);
+    tag(cx - V.w * .22, cy + b.m * G * F_PX + 16, 'W = ' + (b.m * G).toFixed(1) + ' N', '#ff6b81');
+    // normal
+    arrow(cx - V.w * .22, groundY, cx - V.w * .22, groundY - b.m * G * F_PX, '#4dd4ff', 2.4);
+    tag(cx - V.w * .22, groundY - b.m * G * F_PX - 15, 'N = ' + (b.m * G).toFixed(1) + ' N', '#4dd4ff');
+    // friction
+    const fk = S.f1.mu * b.m * G;
+    if (fk > 0.05) {
+      arrow(cx + V.w * .3, cy, cx + V.w * .3 - fk * F_PX, cy, '#ffb547', 2.4);
+      tag(cx + V.w * .3 - fk * F_PX, cy - 15, 'fₖ = ' + fk.toFixed(1) + ' N', '#ffb547');
+    }
+    // velocity
+    arrow(cx, cy, cx + b.vx * V_PX, cy, '#3ddc97', 3);
+    tag(cx + b.vx * V_PX, cy + 20, 'v = ' + b.vx.toFixed(2) + ' m/s', '#3ddc97');
+    // acceleration
+    if (Math.abs(b.ax) > 0.01) {
+      arrow(cx, cy - V.h * .3, cx + b.ax * A_PX, cy - V.h * .3, '#a970ff', 3);
+      tag(cx + b.ax * A_PX, cy - V.h * .3 - 16, 'a = ' + b.ax.toFixed(2) + ' m/s²', '#a970ff');
+    } else {
+      tag(cx, cy - V.h * .75, 'a = 0', '#a970ff');
+    }
+  }
+  glowBlock(cx, cy, V.w, V.h, '#4dd4ff', '2 kg', 'm = 2 kg');
+}
+
+function drawTwo() {
+  const b = S.f2.body, c = S.f2;
+  const cx = SX(b.x), cy = SY(b.y);
+  const V = { w: b.w * PX, h: b.h * PX };
+  const I = c.info || { N: b.m * G, fk: 0, W: b.m * G, Fx: c.Fx, Fy: c.Fy, ax: 0, ay: 0 };
+  if (S.show.vectors) {
+    const Fx = c.Fx + (c.drag ? c.drag.fx : 0), Fy = c.Fy + (c.drag ? c.drag.fy : 0);
+    // applied
+    if (Math.hypot(Fx, Fy) > 0.2) {
+      arrow(cx, cy, cx + Fx * F_PX, cy - Fy * F_PX, '#ff6b81', 3.2);
+      tag(cx + Fx * F_PX, cy - Fy * F_PX - 16, 'F = ' + Math.hypot(Fx, Fy).toFixed(1) + ' N', '#ff6b81');
+    }
+    // weight
+    arrow(cx - V.w * .28, cy, cx - V.w * .28, cy + I.W * F_PX, '#a970ff', 2.2);
+    // normal
+    const g2 = b.y <= 0.001;
+    arrow(cx - V.w * .28, g2 ? groundY : cy, cx - V.w * .28, (g2 ? groundY : cy) - I.N * F_PX, '#4dd4ff', 2.2);
+    tag(cx - V.w * .28, (g2 ? groundY : cy) - I.N * F_PX - 14, 'N = ' + I.N.toFixed(1) + ' N', '#4dd4ff');
+    // friction
+    if (Math.abs(I.fk) > 0.05) {
+      arrow(cx + V.w * .3, cy, cx + V.w * .3 - I.fk * F_PX, cy, '#ff5cc8', 2.4);
+      tag(cx + V.w * .3 - I.fk * F_PX, cy + 18, 'fₖ = ' + I.fk.toFixed(1) + ' N', '#ff5cc8');
+    }
+    // net (dashed)
+    if (S.show.net) {
+      const nx = c.net.x, ny = c.net.y;
+      if (Math.hypot(nx, ny) > 0.2) {
+        arrow(cx, cy - V.h * .72, cx + nx * F_PX, cy - V.h * .72 - ny * F_PX, '#c9d4ea', 2, true);
+        tag(cx + nx * F_PX, cy - V.h * .72 - ny * F_PX - 15, 'ΣF = ' + Math.hypot(nx, ny).toFixed(1) + ' N', '#c9d4ea');
+      }
+    }
+    // velocity
+    if (Math.hypot(b.vx, b.vy) > 0.05) {
+      arrow(cx, cy + V.h * .2, cx + b.vx * V_PX, cy + V.h * .2 - b.vy * V_PX, '#3ddc97', 2.8);
+      tag(cx + b.vx * V_PX, cy + V.h * .2 - b.vy * V_PX + 18, 'v = ' + Math.hypot(b.vx, b.vy).toFixed(2) + ' m/s', '#3ddc97');
+    }
+    // acceleration
+    arrow(cx, cy - V.h * .18, cx + b.ax * A_PX, cy - V.h * .18 - b.ay * A_PX, '#4dd4ff', 3);
+    tag(cx + b.ax * A_PX, cy - V.h * .18 - b.ay * A_PX + 20, 'a = ' + Math.hypot(b.ax, b.ay).toFixed(2) + ' m/s²', '#4dd4ff');
+  }
+  glowBlock(cx, cy, V.w, V.h, '#4dd4ff', b.m + ' kg', 'm = ' + b.m + ' kg');
+
+  if (c.drag) {
+    ctx.save();
+    ctx.strokeStyle = '#ff6b81'; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(c.drag.sx, c.drag.sy); ctx.lineTo(cx, cy); ctx.stroke();
+    ctx.restore();
+    tag(cx, cy - V.h / 2 - 34, 'drag to apply force', '#ff6b81');
+  }
+}
+
+function drawThree() {
+  const { a, b, w, h } = S.f3;
+  const contacting = S.f3.contact > 0;
+  if (contacting) {
+    const cx = (SX(a.x) + SX(b.x)) / 2;
+    const m = Math.max(6, Math.min(90, Math.abs(b.vx - a.vx) * 26));
+    arrow(SX(a.x), SY(h / 2), SX(a.x) + m, SY(h / 2), '#a970ff', 3.2);
+    tag(SX(a.x) + m, SY(h / 2) - 20, 'F', '#a970ff');
+    arrow(SX(b.x), SY(h / 2), SX(b.x) - m, SY(h / 2), '#4dd4ff', 3.2);
+    tag(SX(b.x) - m, SY(h / 2) - 20, 'F', '#4dd4ff');
+    tag((SX(a.x) + SX(b.x)) / 2, SY(h / 2) - 52, 'F = ' + m.toFixed(0) + ' N  →  F = ' + m.toFixed(0) + ' N  (equal & opposite)', '#e6edf8');
+  }
+  if (S.show.vectors) {
+    arrow(SX(a.x), SY(h / 2), SX(a.x) + a.vx * V_PX, SY(h / 2), '#3ddc97', 2.6);
+    arrow(SX(b.x), SY(h / 2), SX(b.x) + b.vx * V_PX, SY(h / 2), '#3ddc97', 2.6);
+  }
+  glowBlock(SX(a.x), SY(h / 2), w * PX, h * PX, '#4dd4ff', a.label, a.m + ' kg');
+  glowBlock(SX(b.x), SY(h / 2), w * PX, h * PX, '#a970ff', b.label, b.m + ' kg');
+  if (S.show.vectors) {
+    tag(SX(a.x) + a.vx * V_PX, SY(h / 2) + 24, a.vx.toFixed(2) + ' m/s', '#3ddc97');
+    tag(SX(b.x) + b.vx * V_PX, SY(h / 2) + 24, b.vx.toFixed(2) + ' m/s', '#3ddc97');
+  }
+  if (!contacting) tag(SX(a.x) - w * PX / 2, SY(h / 2) - h * PX / 2 - 14, 'v = ' + a.vx.toFixed(1) + ' m/s  →', '#4dd4ff');
+}
+
+/* ------------------------------------------------------------ dragging */
+function toWorld(e) {
+  const r = cv.getBoundingClientRect();
+  return { x: (e.clientX - r.left - 40) / PX, y: (groundY - (e.clientY - r.top)) / PX };
+}
+cv.addEventListener('pointerdown', e => {
+  if (S.mode !== 'two') return;
+  const p = toWorld(e), b = S.f2.body;
+  if (Math.abs(p.x - b.x) < b.w / 2 + .3 && Math.abs(p.y - b.y) < b.h / 2 + .4) {
+    S.f2.drag = { fx: 0, fy: 0, sx: e.clientX, sy: e.clientY };
+    S.dragging = true; cv.setPointerCapture(e.pointerId);
+  }
+});
+cv.addEventListener('pointermove', e => {
+  if (!S.f2.drag) return;
+  const r = cv.getBoundingClientRect();
+  const dx = (e.clientX - r.left) - S.f2.drag.sx, dy = (e.clientY - r.top) - S.f2.drag.sy;
+  const maxF = 60;
+  const m = Math.hypot(dx / F_PX, -dy / F_PX);
+  const k = m > maxF ? maxF / m : 1;
+  S.f2.drag.fx = dx / F_PX * k; S.f2.drag.fy = -dy / F_PX * k;
+});
+const endDrag = () => { S.f2.drag = null; S.dragging = false; };
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('pointerleave', endDrag);
+
+/* =================================================================== */
+/*  READOUT PANELS                                                      */
+/*  Rows are built once per mode and only their text is refreshed.        */
+/*  Rebuilding the panel every frame would swap the DOM out from under   */
+/*  the pointer, so clicks on a "?" button could never complete.         */
+/* =================================================================== */
+const ROWS = {  one: [
+    { id: 'a1', k: 'Net force &Sigma;F', u: 'N', c: '#3ddc97', key: 'applied' },
+    { id: 'a2', k: 'Mass m', u: 'kg', c: '#e6edf8' },
+    { id: 'a3', k: 'Acceleration a', u: 'm/s&sup2;', c: '#a970ff', key: 'accel' },
+    { id: 'a4', k: 'Velocity v', u: 'm/s', c: '#3ddc97', key: 'velocity' },
+    { id: 'a5', k: 'Distance travelled', u: 'm', c: '#4dd4ff' },
+    { id: 'a6', k: 'Kinetic energy', u: 'J', c: '#ffb547' }
+  ],
+  two: [
+    { id: 'b1', k: 'Applied force |F|', u: 'N', c: '#ff6b81', key: 'applied' },
+    { id: 'b2', k: 'Weight W = m&middot;g', u: 'N', c: '#a970ff', key: 'gravity' },
+    { id: 'b3', k: 'Normal force N', u: 'N', c: '#4dd4ff', key: 'normal' },
+    { id: 'b4', k: 'Friction f&#8342; = &mu;N', u: 'N', c: '#ff5cc8', key: 'friction' },
+    { id: 'b5', k: 'Net force &Sigma;F&#8347;', u: 'N', c: '#c9d4ea' },
+    { id: 'b6', k: '&Sigma;F / m', u: 'm/s&sup2;', c: '#c9d4ea' },
+    { id: 'b7', k: 'Measured a', u: 'm/s&sup2;', c: '#4dd4ff', key: 'accel' },
+    { id: 'b8', k: 'Velocity v', u: 'm/s', c: '#3ddc97', key: 'velocity' }
+  ],
+  three: [
+    { id: 'c1', k: 'Momentum of A', u: 'kg&middot;m/s', c: '#4dd4ff', key: 'momentum' },
+    { id: 'c2', k: 'Momentum of B', u: 'kg&middot;m/s', c: '#a970ff', key: 'momentum' },
+    { id: 'c3', k: 'Total momentum', u: 'kg&middot;m/s', c: '#3ddc97' },
+    { id: 'c4', k: 'Total kinetic energy', u: 'J', c: '#ffb547', key: 'energy' },
+    { id: 'c5', k: 'Restitution e', u: '', c: '#ff6b81' },
+    { id: 'c6', k: 'Contact state', u: '', c: '#7f8ca8' }
+  ]
+};
+function rowHTML(d) {
+  return `<div class="metric"><span class="k"><span style="width:8px;height:8px;border-radius:2px;background:${d.c};display:inline-block"></span>${d.k}${d.key ? infoBtn(d.key) : ''}</span>` +
+         `<span class="v" id="${d.id}_w" style="color:${d.c}"><span id="${d.id}_v">—</span><span class="u" id="${d.id}_u">${d.u}</span></span></div>`;
+}
+function renderMetrics(hostId, defs) {
+  const host = document.getElementById(hostId);
+  if (host) host.innerHTML = defs.map(rowHTML).join('');
+}
+const CELLS = {};
+function setM(id, v, u, color) {
+  const cell = CELLS[id] || (CELLS[id] = {
+    v: document.getElementById(id + '_v'),
+    u: document.getElementById(id + '_u'),
+    w: document.getElementById(id + '_w')
+  });
+  if (!cell.v) return;
+  const s = String(v);
+  if (cell.v.textContent !== s) cell.v.textContent = s;
+  if (u !== undefined && cell.u.textContent !== (u || '')) cell.u.textContent = u || '';
+  if (color && cell.w && cell.w.style.color !== color) cell.w.style.color = color;
+}
+
+let lastPaint = 0;
+function paintReadouts(now) {
+  if (now - lastPaint < 55) return;
+  lastPaint = now;
+
+  if (S.mode === 'one') {
+    const b = S.f1.body, net = S.f1.net || 0;
+    setM('a1', Math.abs(net).toFixed(2), 'N', Math.abs(net) < .01 ? '#3ddc97' : '#ff6b81');
+    setM('a2', b.m.toFixed(1), 'kg');
+    setM('a3', b.ax.toFixed(2), 'm/s²', '#a970ff');
+    setM('a4', b.vx.toFixed(2), 'm/s');
+    setM('a5', b.x.toFixed(2), 'm');
+    setM('a6', (0.5 * b.m * b.vx * b.vx).toFixed(1), 'J');
+    const v = document.getElementById('v1');
+    v.className = 'verdict ' + (Math.abs(net) < .01 ? 'good' : 'warn');
+    v.innerHTML = Math.abs(net) < .01
+      ? '<b>Balanced forces.</b> Weight and the normal force cancel, so ΣF = 0 and the block keeps a constant velocity of ' + b.vx.toFixed(2) + ' m/s — the first law in action.'
+      : '<b>Friction is acting.</b> The net force is ' + Math.abs(net).toFixed(2) + ' N, so a = F/m = ' + b.ax.toFixed(2) + ' m/s² and the block is slowing down. The law still holds: it is no longer force-free.';
+  }
+
+  if (S.mode === 'two') {
+    const b = S.f2.body, c = S.f2, I = c.info || {};
+    const Fx = c.Fx + (c.drag ? c.drag.fx : 0), Fy = c.Fy + (c.drag ? c.drag.fy : 0);
+    setM('b1', Math.hypot(Fx, Fy).toFixed(2), 'N');
+    setM('b2', (b.m * G).toFixed(2), 'N');
+    setM('b3', (I.N || 0).toFixed(2), 'N');
+    setM('b4', (I.fk || 0).toFixed(2), 'N');
+    setM('b5', (c.net ? c.net.x : 0).toFixed(2), 'N');
+    setM('b6', (b.m ? (c.net ? c.net.x : 0) / b.m : 0).toFixed(2), 'm/s²');
+    setM('b7', Math.hypot(b.ax, b.ay).toFixed(2), 'm/s²');
+    setM('b8', Math.hypot(b.vx, b.vy).toFixed(2), 'm/s');
+    const v = document.getElementById('v2');
+    const calc = b.m ? (c.net ? c.net.x : 0) / b.m : 0;
+    v.className = 'verdict ' + (Math.abs(calc - b.ax) < 0.01 ? 'good' : 'warn');
+    v.innerHTML = '<b>Check:</b> ΣF = ' + (c.net ? c.net.x : 0).toFixed(2) + ' N, m = ' + b.m.toFixed(1) +
+      ' kg, so a = ΣF/m = <b>' + calc.toFixed(2) + ' m/s²</b>. The simulation measures a = <b>' + b.ax.toFixed(2) +
+      ' m/s²</b>. ' + (Math.abs(calc - b.ax) < .01 ? 'Second law confirmed ✓' :
+      'Increase the time step if these ever disagree.');
+  }
+
+  if (S.mode === 'three') {
+    const { a, b, e } = S.f3;
+    const p = a.m * a.vx + b.m * b.vx;
+    const p0 = S.f3.m0.a + S.f3.m0.b;
+    const k = 0.5 * a.m * a.vx ** 2 + 0.5 * b.m * b.vx ** 2;
+    const k0 = S.f3.k0.a + S.f3.k0.b;
+    setM('c1', (a.m * a.vx).toFixed(2), 'kg·m/s');
+    setM('c2', (b.m * b.vx).toFixed(2), 'kg·m/s');
+    setM('c3', p.toFixed(2), 'kg·m/s');
+    setM('c4', k.toFixed(1), 'J');
+    setM('c5', e.toFixed(2), '');
+    setM('c6', S.f3.contact > 0 ? 'in contact' : 'separated', '', S.f3.contact > 0 ? '#ffb547' : '#7f8ca8');
+    const v = document.getElementById('v3');
+    const dP = Math.abs(p - p0);
+    const dK = Math.abs(k - k0);
+    v.className = 'verdict ' + (dP < 0.05 ? 'good' : 'warn');
+    v.innerHTML = '<b>Total momentum before: ' + p0.toFixed(2) + ' → after: ' + p.toFixed(2) + '</b> (Δ = ' + dP.toFixed(3) +
+      '). <br>Kinetic energy ' + k0.toFixed(1) + ' J → ' + k.toFixed(1) + ' J (Δ = ' + dK.toFixed(1) + ' J). ' +
+      (dP < .05
+        ? (dK < .6 ? 'Momentum <b>and</b> energy conserved — perfectly elastic collision ✓'
+          : 'Momentum conserved, energy lost to heat &amp; sound — inelastic collision (e = ' + e.toFixed(2) + ')')
+        : 'Momentum is not conserved — reset and watch the numbers through the impact.');
+  }
+}
+
+/* --------------------------------------------------------------- graph */
+function drawGraph() {
+  const g = document.getElementById('graph');
+  if (!g) return;
+  const r = g.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+  if (g.width !== r.width * dpr) { g.width = r.width * dpr; g.height = r.height * dpr; }
+  const c = g.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = r.width, h = r.height;
+  c.clearRect(0, 0, w, h);
+
+  c.strokeStyle = 'rgba(120,150,210,.10)'; c.lineWidth = 1;
+  for (let i = 1; i < 4; i++) { c.beginPath(); c.moveTo(0, h * i / 4); c.lineTo(w, h * i / 4); c.stroke(); }
+  for (let i = 1; i < 4; i++) { c.beginPath(); c.moveTo(w * i / 4, 0); c.lineTo(w * i / 4, h); c.stroke(); }
+  c.strokeStyle = 'rgba(120,150,210,.28)';
+  c.beginPath(); c.moveTo(0, h / 2); c.lineTo(w, h / 2); c.stroke();
+
+  const H2 = S.hist;
+  const series = S.mode === 'one' ? [['a', '#3ddc97', 1]]
+    : S.mode === 'two' ? [['a', '#4dd4ff', 0.7], ['b', '#3ddc97', 0.35]]
+    : [['a', '#4dd4ff', 1], ['b', '#a970ff', 1]];
+
+  let max = 1;
+  for (const s of series) for (const v of H2[s[0]]) max = Math.max(max, Math.abs(v));
+  max = Math.ceil(max * 1.2);
+  const tmax = Math.max(4, H2.t.length * 0.02);
+
+  c.font = '10px "Segoe UI",sans-serif'; c.fillStyle = 'rgba(147,164,196,.9)';
+  c.textAlign = 'left'; c.fillText('+' + max.toFixed(0), 5, 12);
+  c.textAlign = 'center'; c.fillText('0', 22, h / 2 + 3);
+  c.textAlign = 'right'; c.fillText('−' + max.toFixed(0), 42, h - 4);
+  c.textAlign = 'left'; c.fillStyle = 'rgba(147,164,196,.65)';
+  c.fillText(tmax.toFixed(0) + ' s', w - 34, h - 5);
+
+  for (const [key, col, alpha] of series) {
+    const arr = H2[key];
+    if (arr.length < 2) continue;
+    c.globalAlpha = alpha; c.strokeStyle = col; c.lineWidth = 2; c.lineJoin = 'round';
+    c.beginPath();
+    for (let i = 0; i < arr.length; i++) {
+      const X = 4 + (i / (tmax / 0.02)) * (w - 12);
+      const Y = h / 2 - (arr[i] / max) * (h / 2 - 6);
+      i ? c.lineTo(X, Y) : c.moveTo(X, Y);
+    }
+    c.stroke();
+    c.globalAlpha = 1;
+  }
+}
+
+/* =================================================================== */
+/*  MAIN LOOP                                                           */
+/* =================================================================== */
+let last = performance.now(), acc = 0;
+const DT = 1 / 120, HSTEP = 0.02;
+let hAcc = 0;
+
+function loop(now) {
+  try { frame(now); } catch (err) { showFatal(err.message); console.error(err); }
+  requestAnimationFrame(loop);
+}
+
+function frame(now) {
+  const raw = (now - last) / 1000; last = now;
+  const dt = Math.min(raw, 0.05) * S.speed;
+
+  if (S.playing) {
+    acc += dt;
+    let guard = 0;
+    while (acc >= DT && guard++ < 40) {
+      S.t += DT;
+      if (S.mode === 'one') stepOne(DT);
+      if (S.mode === 'two') stepTwo(DT);
+      if (S.mode === 'three') stepThree(DT);
+      acc -= DT;
+
+      hAcc += DT;
+      if (hAcc >= HSTEP) {
+        hAcc = 0;
+        S.hist.t.push(S.t);
+        if (S.mode === 'one') S.hist.a.push(S.f1.body.vx), S.hist.b.push(S.f1.body.vx);
+        if (S.mode === 'two') S.hist.a.push(S.f2.body.ax), S.hist.b.push(Math.hypot(S.f2.body.vx, S.f2.body.vy));
+        if (S.mode === 'three') S.hist.a.push(S.f3.a.vx), S.hist.b.push(S.f3.b.vx);
+        if (S.hist.t.length > 700) { S.hist.t.shift(); S.hist.a.shift(); S.hist.b.shift(); }
+      }
+    }
+  } else acc = 0;
+
+  drawGrid();
+  if (S.mode === 'one') drawOne();
+  if (S.mode === 'two') drawTwo();
+  if (S.mode === 'three') drawThree();
+
+  paintReadouts(now);
+  drawGraph();
+}
+
+/* ------------------------------------------------------------- startup */
+function showFatal(msg) {
+  let el = document.getElementById('fatal');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'fatal';
+    el.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:999;' +
+      'max-width:92vw;background:rgba(60,10,20,.95);border:1px solid #ff6b81;color:#ffd7de;' +
+      'padding:10px 14px;border-radius:10px;font:12.5px/1.5 Consolas,monospace;white-space:pre-wrap';
+    document.body.appendChild(el);
+  }
+  el.textContent = 'Sim error: ' + msg;
+}
+window.addEventListener('error', e => showFatal(e.message));
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    S.mode = t.dataset.mode;
+    S.t = 0; S.playing = true;
+    if (S.mode === 'one') { setupOne(); elBadge.textContent = 'LAW I · INERTIA'; elHint.innerHTML = 'Friction set to <b>μ = 0</b> — the coasting block never slows down.'; }
+    if (S.mode === 'two') { setupTwo(); elBadge.textContent = 'LAW II · F = ma'; elHint.innerHTML = '<b>Drag the block</b> to push it, or use the force slider.'; }
+    if (S.mode === 'three') { setupThree(); elBadge.textContent = 'LAW III · ACTION–REACTION'; elHint.innerHTML = 'Watch the two <b>equal and opposite</b> contact arrows at impact.'; }
+    resetHist();
+    buildPanels();
+  };
+});
+
+resize();
+setupOne();
+buildPanels();
+elHint.innerHTML = 'Friction set to <b>μ = 0</b> — the coasting block never slows down.';
+if (window.ResizeObserver) new ResizeObserver(resize).observe(document.querySelector('.stage'));
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

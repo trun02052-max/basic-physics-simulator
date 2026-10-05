@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Cyclotron — Interactive Simulator</title>
+<style>
+  :root{
+    --bg:#070a12;
+    --panel:rgba(18,26,45,.72);
+    --line:rgba(120,150,210,.16);
+    --line-strong:rgba(130,170,255,.34);
+    --txt:#e6edf8;
+    --muted:#93a4c4;
+    --accent:#4dd4ff;
+    --accent2:#a970ff;
+    --good:#3ddc97;
+    --warn:#ffb547;
+    --bad:#ff6b81;
+    --magenta:#ff5cc8;
+    --radius:16px;
+    --shadow:0 18px 50px rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Segoe UI",Inter,system-ui,-apple-system,Roboto,sans-serif;
+    color:var(--txt);
+    background:
+      radial-gradient(1100px 700px at 12% -10%, rgba(169,112,255,.16), transparent 60%),
+      radial-gradient(900px 650px at 95% 0%, rgba(77,212,255,.16), transparent 62%),
+      radial-gradient(800px 700px at 60% 120%, rgba(255,181,71,.08), transparent 60%),
+      linear-gradient(180deg,#070a12,#0a0f1c 60%,#070a12);
+    overflow:hidden;
+  }
+  .app{height:100%;display:flex;flex-direction:column}
+
+  header{
+    display:flex;align-items:center;gap:16px;padding:12px 20px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(14,22,40,.9),rgba(10,16,30,.55));
+    backdrop-filter:blur(14px);z-index:20;flex:0 0 auto;
+  }
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}
+  .logo{
+    width:40px;height:40px;border-radius:12px;flex:0 0 auto;
+    background:linear-gradient(135deg,var(--accent2),var(--accent));
+    display:grid;place-items:center;font-size:20px;
+    box-shadow:0 0 22px rgba(169,112,255,.45);
+  }
+  .brand h1{font-size:17px;letter-spacing:.3px;font-weight:650;white-space:nowrap}
+  .brand p{font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .navgroup{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .navlink{
+    display:flex;align-items:center;gap:8px;text-decoration:none;
+    padding:9px 15px;border-radius:11px;font-size:12.5px;font-weight:600;
+    border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--muted);
+    transition:.18s;white-space:nowrap;
+  }
+  .navlink:hover{color:var(--txt);border-color:var(--line-strong);transform:translateY(-1px);
+    box-shadow:0 6px 18px rgba(77,212,255,.18)}
+
+  main{
+    flex:1 1 auto;display:grid;grid-template-columns:320px minmax(0,1fr) 330px;
+    grid-template-rows:minmax(0,1fr);
+    gap:14px;padding:14px;min-height:0;
+  }
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);backdrop-filter:blur(16px);
+    overflow-y:auto;overflow-x:hidden;padding:16px;min-height:0;
+  }
+  .panel::-webkit-scrollbar,.stage::-webkit-scrollbar{width:9px}
+  .panel::-webkit-scrollbar-thumb,.stage::-webkit-scrollbar-thumb{background:rgba(120,160,230,.22);border-radius:9px}
+  .panel::-webkit-scrollbar-track{background:transparent}
+
+  .stage{
+    position:relative;border-radius:var(--radius);overflow:hidden;
+    border:1px solid var(--line);box-shadow:var(--shadow);min-height:0;
+    background:linear-gradient(180deg,rgba(12,20,36,.5),rgba(8,13,24,.78));
+  }
+  #scene{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+  .stage-badge{
+    position:absolute;top:14px;left:16px;display:flex;gap:8px;align-items:center;
+    font-size:11.5px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase;
+    background:rgba(7,11,20,.6);border:1px solid var(--line);padding:6px 12px;border-radius:20px;
+    backdrop-filter:blur(6px);pointer-events:none;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 10px var(--good);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .stage[data-off="1"] .dot{background:var(--warn);box-shadow:0 0 10px var(--warn);animation:none}
+
+  .scope{
+    position:absolute;top:14px;right:16px;width:186px;
+    background:rgba(7,11,20,.78);border:1px solid var(--line);border-radius:12px;
+    padding:9px 10px 6px;backdrop-filter:blur(6px);
+  }
+  .scope h5{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:6px}
+  .scope canvas{width:100%;height:64px;display:block;margin-top:4px}
+  .scope p{font-size:10px;color:var(--muted);margin-top:2px}
+
+  .legend{position:absolute;left:16px;bottom:14px;display:flex;flex-wrap:wrap;gap:6px;max-width:60%}
+  .chip{
+    display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--txt);
+    background:rgba(9,14,26,.78);border:1px solid var(--line);
+    padding:6px 9px;border-radius:9px;backdrop-filter:blur(6px);
+  }
+  .chip .swatch{width:14px;height:3px;border-radius:2px}
+  .stage-hint{
+    position:absolute;right:16px;bottom:14px;font-size:11.5px;color:var(--muted);max-width:330px;text-align:right;
+    background:rgba(9,14,26,.78);border:1px solid var(--line);padding:7px 12px;border-radius:10px;
+    backdrop-filter:blur(6px);
+  }
+  .stage-hint b{color:var(--accent)}
+
+  h2.sec{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);
+    margin:2px 0 12px;display:flex;align-items:center;gap:8px}
+  h2.sec::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line-strong),transparent)}
+  h2.sec:not(:first-of-type){margin-top:22px}
+  .card{background:rgba(255,255,255,.035);border:1px solid var(--line);border-radius:13px;padding:13px;margin-bottom:12px}
+  .card p{font-size:12.5px;color:var(--muted);line-height:1.55}
+  .card p + p{margin-top:8px}
+  .card strong{color:var(--txt);font-weight:600}
+  .formula{
+    font-family:"Cascadia Code",Consolas,ui-monospace,monospace;
+    background:linear-gradient(135deg,rgba(77,212,255,.12),rgba(169,112,255,.12));
+    border:1px solid var(--line-strong);border-radius:9px;padding:10px 12px;text-align:center;
+    font-size:14.5px;color:#eaf6ff;margin:10px 0 2px;letter-spacing:.4px;
+  }
+  .formula small{display:block;font-size:10.5px;color:var(--muted);margin-top:5px;letter-spacing:.3px}
+
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+  .row label{font-size:12.5px;color:var(--muted);font-weight:500}
+  .row .val{font-family:"Cascadia Code",Consolas,monospace;font-size:12.5px;color:var(--accent);
+    background:rgba(77,212,255,.1);border:1px solid var(--line);padding:2px 8px;border-radius:7px;min-width:80px;text-align:right}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:5px;
+    background:linear-gradient(90deg,var(--accent) var(--p,50%),rgba(255,255,255,.11) var(--p,50%));
+    outline:none;margin:4px 0 14px;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:#fff;box-shadow:0 0 0 4px rgba(77,212,255,.28),0 2px 6px rgba(0,0,0,.5);cursor:grab}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border:none;border-radius:50%;background:#fff;
+    box-shadow:0 0 0 4px rgba(77,212,255,.28);cursor:grab}
+
+  .segs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px}
+  .seg{padding:7px 11px;border-radius:9px;cursor:pointer;font-size:12px;font-weight:600;
+    border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted);transition:.16s;font-family:inherit}
+  .seg:hover{color:var(--txt);border-color:var(--line-strong)}
+  .seg.active{background:linear-gradient(135deg,var(--accent),#8ad9ff);color:#04121c;border-color:transparent;
+    box-shadow:0 5px 16px rgba(77,212,255,.3)}
+
+  .btn{border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--txt);
+    padding:8px 12px;border-radius:10px;font-size:12.5px;font-weight:600;cursor:pointer;transition:.16s;font-family:inherit}
+  .btn:hover{border-color:var(--line-strong);background:rgba(255,255,255,.09);transform:translateY(-1px)}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),#7fb8ff);color:#04121c;border-color:transparent;
+    box-shadow:0 6px 18px rgba(77,212,255,.3)}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .btns .btn{flex:1 1 auto}
+
+  .toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0}
+  .toggle span{font-size:12.5px;color:var(--muted)}
+  .sw{position:relative;width:40px;height:22px;flex:0 0 auto;cursor:pointer}
+  .sw input{opacity:0;width:0;height:0;position:absolute}
+  .sw i{position:absolute;inset:0;border-radius:22px;background:rgba(255,255,255,.1);border:1px solid var(--line);transition:.2s}
+  .sw i::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+    background:#8ea3c6;transition:.2s}
+  .sw input:checked + i{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent}
+  .sw input:checked + i::after{transform:translateX(18px);background:#fff}
+
+  .metric{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:9px 11px;border-radius:10px;background:rgba(255,255,255,.035);
+    border:1px solid var(--line);margin-bottom:7px}
+  .metric .k{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:7px}
+  .metric .v{font-family:"Cascadia Code",Consolas,monospace;font-size:14px;font-weight:600}
+  .metric .u{font-size:10.5px;color:var(--muted);margin-left:3px;font-weight:400}
+
+  .verdict{border-radius:12px;padding:12px 13px;font-size:12.5px;line-height:1.6;
+    border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted)}
+  .verdict b{color:var(--txt)}
+  .verdict.good{border-color:rgba(61,220,151,.4);background:rgba(61,220,151,.09)}
+  .verdict.warn{border-color:rgba(255,181,71,.4);background:rgba(255,181,71,.09)}
+  .verdict.info{border-color:var(--line-strong);background:linear-gradient(135deg,rgba(77,212,255,.1),rgba(169,112,255,.08))}
+
+  /* deep explanation blocks */
+  .notes{margin-top:20px}
+  .notes h3{
+    font-size:12.5px;color:var(--accent);margin:0 0 8px;display:flex;align-items:center;gap:7px;
+    letter-spacing:.3px;font-weight:650;
+  }
+  .notes section{margin-bottom:16px}
+  .notes p{font-size:12.2px;color:var(--muted);line-height:1.65;margin-bottom:7px}
+  .notes p:last-child{margin-bottom:0}
+  .notes b{color:var(--txt);font-weight:600}
+  .notes ol{margin:0 0 8px;padding-left:19px}
+  .notes ol li{font-size:12.2px;color:var(--muted);line-height:1.6;margin-bottom:5px}
+  .notes ol li b{color:var(--txt)}
+  .notes code{font-family:Consolas,monospace;font-size:11.5px;color:#cfe8ff;background:rgba(77,212,255,.1);
+    border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+  .notes .eq{
+    font-family:Consolas,ui-monospace,monospace;font-size:12.5px;color:#eaf6ff;text-align:center;
+    background:linear-gradient(135deg,rgba(77,212,255,.1),rgba(169,112,255,.08));
+    border:1px solid var(--line-strong);border-radius:8px;padding:8px;margin:7px 0;
+  }
+  .notes .try{
+    border-left:2px solid var(--accent2);padding:2px 0 2px 10px;margin:8px 0;
+    font-size:12.2px;color:var(--muted);line-height:1.6;
+  }
+  .notes .try b{color:#d9c4ff}
+
+  #gR,#gE{width:100%;height:118px;display:block;border-radius:11px;background:rgba(6,10,20,.55);border:1px solid var(--line)}
+  .glegend{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:11.5px;color:var(--muted)}
+  .glegend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+
+  .info{position:fixed;z-index:100;width:290px;max-width:88vw;
+    background:linear-gradient(160deg,#16203a,#0e1526);
+    border:1px solid var(--line-strong);border-radius:14px;box-shadow:0 22px 60px rgba(0,0,0,.7);
+    padding:14px;display:none;animation:pop .16s ease-out}
+  @keyframes pop{from{opacity:0;transform:translateY(-6px) scale(.97)}to{opacity:1;transform:none}}
+  .info.show{display:block}
+  .info h4{font-size:13px;margin-bottom:7px;display:flex;align-items:center;gap:8px}
+  .info p{font-size:12.2px;color:var(--muted);line-height:1.6}
+  .info .fml{font-family:Consolas,monospace;font-size:12.5px;color:var(--accent);margin:9px 0;
+    background:rgba(77,212,255,.09);border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center}
+  .info .close{position:absolute;top:8px;right:10px;font-size:16px;color:var(--muted);cursor:pointer;line-height:1}
+  .info .close:hover{color:var(--txt)}
+  .qbtn{width:17px;height:17px;border-radius:50%;flex:0 0 auto;cursor:pointer;
+    border:1px solid var(--line-strong);background:rgba(77,212,255,.14);color:var(--accent);
+    font-size:10.5px;font-weight:700;display:grid;place-items:center;padding:0;font-family:inherit;transition:.15s}
+  .qbtn:hover{background:var(--accent);color:#04121c;box-shadow:0 0 12px rgba(77,212,255,.6)}
+
+  @media (max-width:1180px){
+    body{overflow:auto}
+    main{grid-template-columns:1fr;grid-template-rows:auto;height:auto}
+    .panel{max-height:none}
+    .stage{height:64vh;min-height:400px}
+  }
+  @media (max-width:640px){
+    header{flex-wrap:wrap}
+    .navgroup{width:100%;margin-left:0}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="logo">🧲</div>
+      <div>
+        <h1>Cyclotron Simulator</h1>
+        <p>How a particle accelerator makes energy · non-relativistic</p>
+      </div>
+    </div>
+    <div class="navgroup">
+      <a class="navlink" href="index.html">← Newton's Laws simulator</a>
+      <a class="navlink" href="circular.html">◠ Circular motion →</a>
+    </div>
+  </header>
+
+  <main>
+    <aside class="panel" id="controls"></aside>
+
+    <section class="stage" id="stage" data-off="0">
+      <canvas id="scene"></canvas>
+      <div class="stage-badge"><span class="dot"></span><span id="badge">CYCLOTRON · BEAM INJECTION</span></div>
+
+      <div class="scope">
+        <h5>RF drive voltage <button class="qbtn" data-info="rf">?</button></h5>
+        <canvas id="scopeCv"></canvas>
+        <p id="scopeTxt">kicks must land on the peaks</p>
+      </div>
+
+      <div class="legend" id="legend"></div>
+      <div class="stage-hint" id="hint"></div>
+    </section>
+
+    <aside class="panel" id="readouts"></aside>
+  </main>
+</div>
+
+<div class="info" id="info">
+  <span class="close" id="infoClose">×</span>
+  <h4 id="infoTitle"></h4>
+  <div class="fml" id="infoFml"></div>
+  <p id="infoBody"></p>
+</div>
+
+<script>
+/* =====================================================================
+   Cyclotron simulator — non-relativistic particle dynamics.
+   Inside the dees: uniform B perpendicular to the page, no field.
+   Across the gap: an alternating electric field, E = (V/d)·sin(ω·t).
+   ===================================================================== */
+
+const E_CHARGE = 1.602176634e-19;   // C
+const U_KG     = 1.66053907e-27;    // kg
+const EV       = E_CHARGE;          // 1 eV expressed in joules
+const C_LIGHT  = 2.99792458e8;
+
+/* particle presets: mass in atomic units, charge in elementary charges,
+   B0 = a field strength that keeps this particle in the classical regime */
+const PRESETS = {
+  proton:   { name: 'Proton',   m: 1.00728,  q: 1,  B0: 0.8 },
+  deuteron: { name: 'Deuteron', m: 2.01410,  q: 1,  B0: 0.8 },
+  alpha:    { name: 'Alpha',    m: 4.00151,  q: 2,  B0: 0.7 },
+  electron: { name: 'Electron', m: 0.000549, q: -1, B0: 0.0004 }
+};
+
+const S = {
+  preset: 'proton',
+  massU: 1.00728, chargeE: 1,
+  B: 0.8, Bsign: 1, magnetOn: true,
+  V: 150e3, rfOn: true, drive: 1.0,
+  D: 0.45,
+  ops: 2.5,                // orbits per second of wall-clock time
+  playing: true,
+  show: { trail: true, vectors: true, field: true, circles: true },
+  t: 0, parts: [], kicks: [],
+  phase: 0, kickPhase: null,
+  hist: { r: [], e: [] },
+  samples: 0, sampleAcc: 0
+};
+
+/* derived quantities ---------------------------------------------------- */
+function mass() { return S.massU * U_KG; }
+function charge() { return S.chargeE * E_CHARGE; }
+function omega() { return charge() * (S.B * S.Bsign) / mass(); }   // rad/s, signed
+function period() { return 2 * Math.PI / Math.abs(omega()); }      // s
+function freq() { return Math.abs(omega()) / (2 * Math.PI); }       // Hz
+function gapWidth() { return 0.02 * S.D; }                        // m — the visible slit
+function injRadius() { return 0.05 * S.D; }                       // m — first orbit
+function eField() { return S.V / gapWidth(); }                     // V/m
+function vMax() { return Math.abs(charge()) * S.B * S.D / mass(); }
+function keMax() { return 0.5 * mass() * vMax() * vMax(); }
+/* a machine can only orbit a particle if it has charge AND a field */
+function hasBend() { return S.magnetOn && Math.abs(omega()) > 1e-12; }
+function orbitPeriod() { const P = period(); return isFinite(P) && P > 0 ? P : 0; }
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* =================================================================== */
+/*  Beam initialisation                                                 */
+/* =================================================================== */
+function seedBeam() {
+  S.parts = []; S.kicks = []; S.t = 0; S.hist = { r: [], e: [] };
+  S.samples = 0; S.sampleAcc = 0; S.kickPhase = null;
+  /* injected a quarter turn before the first gap crossing; the sign is chosen
+     so the very first kick already points the way the particle is travelling.
+     With no bend available there is no orbit period, so the gap is left as a
+     steady field instead of an alternating one. */
+  const P0 = orbitPeriod();
+  S.rfT0 = P0 > 0 ? -P0 / 4 : 0;
+  const w = hasBend() ? omega() : 0;
+  const N = 12;
+  for (let i = 0; i < N; i++) {
+    const f = (i / (N - 1)) - 0.5;                 // -0.5 .. 0.5
+    const th0 = f * 0.04;                          // tiny angular spread
+    const r = injRadius() * (1 + 0.28 * f);        // radial spread = the beam ribbon
+    /* with no bend the beam simply leaves the machine, so give it a speed */
+    const v = w ? Math.abs(r * w) * (1 + 0.01 * f) : 2.0e6;
+    const sgn = Math.sign(w) || 1;
+    const p = { x: r * Math.cos(th0), y: r * Math.sin(th0) };
+    const vel = { x: sgn * v * Math.sin(th0), y: -sgn * v * Math.cos(th0) };
+    S.parts.push(makeParticle(p, vel, w));
+  }
+}
+function makeParticle(p, v, w) {
+  const c = orbitCentre(p, v, w);
+  return { x: p.x, y: p.y, vx: v.x, vy: v.y, cx: c.x, cy: c.y,
+           phi: 0, th0: Math.atan2(p.y - c.y, p.x - c.x),
+           segs: [], done: false, glow: 0, n: 0, canCross: true };
+}
+/* centre of the circular orbit:  c = p + (v_y, −v_x)/ω  */
+function orbitCentre(p, v, w) {
+  if (!w) return { x: p.x, y: p.y };
+  return { x: p.x + v.vy / w, y: p.y - v.vx / w };
+}
+
+/* =================================================================== */
+/*  Physics step                                                        */
+/* =================================================================== */
+/* Each frame advances the simulation by `ops` orbits' worth of time, split into
+   ~16 sub-steps, so the motion looks smooth and is independent of how fast the
+   real orbit actually is. Rotation is exact, so the step size costs no accuracy. */
+
+function stepAll(dt) {
+  const w = hasBend() ? omega() : 0;
+  const E0 = S.rfOn ? eField() : 0;
+  const wac = w * S.drive;
+  const P = orbitPeriod();
+
+  S.t += dt;
+  for (const p of S.parts) {
+    if (p.done) continue;
+
+    /* --- rotate about the orbit centre (exact circular motion) --- */
+    if (w) {
+      const d = -w * dt;                        // clockwise for ω > 0
+      const cs = Math.cos(d), sn = Math.sin(d);
+      const rx = p.x - p.cx, ry = p.y - p.cy;
+      p.x = p.cx + rx * cs - ry * sn;
+      p.y = p.cy + rx * sn + ry * cs;
+      const nvx = p.vx * cs - p.vy * sn, nvy = p.vx * sn + p.vy * cs;
+      p.vx = nvx; p.vy = nvy;
+      p.phi += d;
+    } else {
+      p.x += p.vx * dt; p.y += p.vy * dt;      // no magnet → straight line
+    }
+
+    /* --- gap crossing: impulse from the RF field --- */
+    if (!p.canCross && Math.abs(p.x) > gapWidth() * 0.6) p.canCross = true;
+    const x0 = p.x - p.vx * dt, x1 = p.x;
+    if (E0 && p.canCross && ((x0 < 0 && x1 >= 0) || (x0 > 0 && x1 <= 0))) {
+      const f = Math.abs(x0) / (Math.abs(x0) + Math.abs(x1) + 1e-30);
+      const tc = S.t - dt + f * dt;
+      const vmag = Math.hypot(p.vx, p.vy) || 1e-9;
+      let tg = gapWidth() / Math.max(Math.abs(p.vx), 1e-3);
+      tg = Math.min(tg, 3 * (P || 1e-3));
+      const dV = charge() * E0 * tg * Math.cos(wac * (tc - S.rfT0)) / mass();
+      const capped = clamp(dV, -0.9 * vmag, 3 * vmag);
+      p.vx += capped;
+      p.glow = 1;
+      p.canCross = false;
+
+      p.n++;
+      /* the half orbit just finished becomes an arc segment */
+      p.segs.push({ cx: p.cx, cy: p.cy, r: Math.hypot(p.x - p.cx, p.y - p.cy), th: p.th0 });
+      if (p.segs.length > 400) p.segs.shift();
+      /* keep the orbit centred on the machine axis — real machines use
+         focusing coils to hold the orbit in place after every kick.
+         With no bend there is no orbit to centre, so leave the track alone. */
+      if (w) {
+        const c2 = orbitCentre(p, p, w);
+        p.x -= c2.x; p.y -= c2.y; p.cx = 0; p.cy = 0;
+        p.th0 = Math.atan2(p.y, p.x);
+      }
+      p.phi = 0;
+
+      S.kicks.push(tc);
+      if (S.kicks.length > 60) S.kicks.shift();
+      const u = wac * (tc - S.rfT0);
+      S.kickPhase = u - Math.PI * Math.round(u / Math.PI);
+    }
+
+    /* --- did it reach the dee edge? --- */
+    const rad = Math.hypot(p.x, p.y);
+    if (rad > S.D) { p.done = true; p.glow = 1; }
+  }
+
+  /* history for the graphs */
+  S.sampleAcc++;
+  if (S.sampleAcc >= 6) {
+    S.sampleAcc = 0;
+    const live = S.parts.filter(p => !p.done);
+    if (live.length) {
+      const r = live.reduce((a, p) => a + Math.hypot(p.x, p.y), 0) / live.length;
+      const e = live.reduce((a, p) => a + 0.5 * mass() * (p.vx * p.vx + p.vy * p.vy), 0) / live.length;
+      S.hist.r.push(r); S.hist.e.push(e / EV);
+      if (S.hist.r.length > 320) { S.hist.r.shift(); S.hist.e.shift(); }
+    }
+  }
+}
+
+/* =================================================================== */
+/*  Info popovers                                                       */
+/* =================================================================== */
+const INFO = {
+  B: { t: 'Magnetic field (B)', f: 'F = q·v×B   →   r = m·v / |q|B',
+       b: 'A uniform field pointing straight out of (or into) the screen bends the moving charge sideways — the stronger the field and the slower the particle, the tighter the turn. The magnetic force is <em>perpendicular</em> to the velocity, so it changes only the <b>direction</b>, never the speed: that is why the particle coasts in a circle and keeps its energy between gaps.' },
+  E: { t: 'Electric field in the gap', f: 'E = V / d     ΔE = q·V',
+       b: 'The two dees are driven by an alternating voltage, so a field points across the narrow gap between them, reversing every half turn. The particle only feels this field while it is in the gap, and each crossing hands it the energy <b>q·V</b> — the same kick every time, no matter how fast it is already going.' },
+  rf: { t: 'Resonance — the beat of the two', f: 'f_RF = |q|B / 2πm',
+       b: 'The circular motion has a fixed period <b>T = 2πm/|q|B</b> that does <em>not</em> depend on the particle’s speed. So the RF voltage must be flipped exactly twice per revolution. Drive it at the wrong frequency and the field starts pushing the particle backwards, undoing the work it just did — the beam stalls and unwinds.' },
+  kick: { t: 'The kick across the gap', f: 'ΔKE = |q|·V   (per crossing)',
+         b: 'Two gap crossings per revolution means the beam gains <b>2|q|V</b> of energy per turn. Multiply that by the number of turns and you can predict the final energy before the particle ever reaches the edge of the dee.' },
+  spiral: { t: 'Why a spiral?', f: 'r ∝ v,   v grows ∝ turns',
+            b: 'Because the radius is proportional to the speed, every kick widens the orbit. Momentum grows, and the gaps get further apart in time, but the <em>period stays exactly the same</em> — that constant period is what lets a simple oscillator keep hundreds of particles in step.' },
+  radius: { t: 'Orbit radius (r)', f: 'r = m·v / |q|B',
+            b: 'The measured distance from the machine centre to the beam. The particle leaves when this reaches the radius of the dees, which is how the size of the machine sets the maximum energy it can deliver.' },
+  period: { t: 'Orbit period (T)', f: 'T = 2πm / |q|B',
+            b: 'Notice the mass and charge but <b>no speed</b>: a fast particle travels a longer circle in exactly the same time. The readout compares the period measured from the simulation with the formula — they agree, and they never drift as the beam spirals outward.' },
+  energy: { t: 'Kinetic energy', f: 'Eₖ = ½ m v²',
+            b: 'Each gap crossing adds the same chunk of energy, but because energy is proportional to v², the graph curves upward like a parabola. The final energy is set by the field strength and the size of the dees: <b>Eₘₐₓ = q²B²D² / 2m²</b>.' },
+  limit: { t: 'The size limit', f: 'Eₘₐₓ = q²B²D² / 2m²',
+           b: 'When the orbit reaches the dee edge the particle is no longer accelerated and must be extracted. Doubling B quadruples the maximum energy; doubling the dee radius quadruples it too. Building a bigger machine is the only classical way past this limit (which is exactly why synchrotrons exist).' },
+  beam: { t: 'The beam', f: 'N particles, injected at the centre',
+          b: 'A real cyclotron fires many particles per turn, all leaving the ion source at slightly different angles and speeds. They do not line up exactly, but because the period is the same for all of them the RF voltage still kicks them at the right phase, so the whole beam gains energy together and spirals out as a ribbon.' },
+  polarity: { t: 'Field direction', f: 'ω = |q|B/m   (sign sets the sense)',
+              b: 'Reversing the magnet (or using a negative charge such as an electron) reverses the direction of rotation. The RF voltage reverses with it — that pairing is what keeps the kick pointed forwards for either sign of charge.' },
+  kicker: { t: 'Injection & the kicker', f: 'E = V/d, set for one gap crossing',
+            b: 'A real machine does not simply switch the beam on. An <b>ion source</b> makes the particles, and a small pulsed <b>kicker magnet</b> or an electrostatic deflector injects them into the first orbit at just the right moment and direction. The phase has to be right from the very first pass — start even a fraction of a cycle out and every later kick is wasted. This model sets the injection phase exactly right for you.' },
+  extract: { t: 'Extraction', f: 'steer the beam out of the machine',
+             b: 'Reaching the dee edge is not the end: the particle must actually be taken out and delivered to a target. Real machines use a thin <b>deflector</b> (a small magnet that nudges the outer orbit sideways into an extraction channel) or a fast <b>kick-off</b> magnet pulsed at exactly the right moment to eject the beam. Everything past the last arc is target physics, not accelerator physics.' },
+  fringe: { t: 'Fringe fields', f: '∂B/∂x ≠ 0 near the edge',
+            b: 'Real magnets do not stop abruptly at the dee edge — the field falls off gradually, and that fall-off is what bends the outer orbit off-axis so the beam can be extracted. Inside the dees this model uses a perfectly uniform field and a hard circular edge, which is the idealisation every textbook starts from.' },
+  deeangle: { t: 'Dee angle (the "fan")', f: 'dees shaped along the orbit',
+              b: 'The dees of a working cyclotron are not plain semicircles: their edges are cut at an angle that follows the spiral of the orbit, so the gap gets wider as the beam grows and the voltage can be kept roughly constant. Simple simulations draw the ideal semicircle you see here.' },
+  relativity: { t: 'Where the classical picture breaks', f: 'Eₖ = (γ−1)mc²,  T → γT',
+                b: 'This model treats the mass as constant, which is only good while the speed is well below c. As the beam approaches light speed the relativistic mass grows, the orbit period <b>T grows with it</b>, and the beam slowly slides out of phase with the RF — exactly the failure the resonance condition warns about. Real machines fix it in two ways: a <b>synchrocyclotron</b> sweeps the RF frequency to match the lengthening period, and a <b>synchrotron</b> instead raises the magnetic field with the speed so the period never changes. The readout above flags when a preset leaves the safe zone (v/c above 0.3).' }
+};
+
+const pop = document.getElementById('info');
+let popOpen = false, popAnchor = null;
+function placePop() {
+  if (!popOpen || !popAnchor) return;
+  if (!popAnchor.isConnected) { hideInfo(); return; }
+  const r = popAnchor.getBoundingClientRect(), pw = 290, ph = pop.offsetHeight;
+  let left = r.left - pw - 12, top = r.top - 8;
+  if (left < 10) left = r.right + 12;
+  if (left + pw > innerWidth - 10) left = innerWidth - pw - 10;
+  if (top + ph > innerHeight - 10) top = Math.max(10, innerHeight - ph - 10);
+  if (top < 10) top = 10;
+  pop.style.left = left + 'px'; pop.style.top = top + 'px';
+}
+function showInfo(key, anchor) {
+  const d = INFO[key]; if (!d) return;
+  document.getElementById('infoTitle').textContent = d.t;
+  document.getElementById('infoFml').textContent = d.f;
+  document.getElementById('infoBody').innerHTML = d.b;
+  pop.classList.add('show'); popOpen = true; popAnchor = anchor;
+  placePop();
+}
+function hideInfo() { pop.classList.remove('show'); popOpen = false; popAnchor = null; }
+window.addEventListener('scroll', placePop, true);
+window.addEventListener('resize', placePop);
+document.getElementById('infoClose').onclick = hideInfo;
+document.addEventListener('click', e => {
+  if (popOpen && !pop.contains(e.target) && !e.target.closest('.qbtn')) hideInfo();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideInfo(); });
+document.addEventListener('click', e => {
+  const b = e.target.closest('.qbtn');
+  if (b) { e.stopPropagation(); const k = b.dataset.info;
+    if (popOpen && pop.dataset.k === k) hideInfo(); else { pop.dataset.k = k; showInfo(k, b); } }
+});
+const infoBtn = k => `<button class="qbtn" data-info="${k}" title="What is this?">?</button>`;
+
+/* =================================================================== */
+/*  Control panel                                                       */
+/* =================================================================== */
+/* =================================================================== */
+/*  Detailed notes shown at the bottom of the readout panel            */
+/* =================================================================== */
+const DEEP_NOTES = `
+<div class="notes">
+  <h2 class="sec">In detail</h2>
+
+  <section>
+    <h3>What happens during one turn ${infoBtn('kick')}</h3>
+    <ol>
+      <li>Inside a dee there is <b>no electric field</b> — only the magnet. The particle coasts around a <b>circle</b> at constant speed, and the magnetic force keeps turning its velocity without ever doing work on it.</li>
+      <li>It crosses the <b>gap</b> between the dees twice per turn. Only here does the alternating field reach it, and only here can it gain energy.</li>
+      <li>The kick is <b>qV</b> every single time, no matter how fast the particle is already going. That constancy is the whole trick.</li>
+      <li>Every kick makes it faster, and a faster particle needs a <b>bigger radius</b> (r ∝ v), so the next circle is wider than the last one — the spiral.</li>
+      <li>Each circle takes exactly the <b>same time</b> T = 2πm/|q|B, because the period has no v in it. Faster is not quicker around the loop.</li>
+      <li>After many turns the orbit reaches the edge of the dee, and the particle can gain no more energy. It is taken out.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h3>The four equations this machine runs on ${infoBtn('B')}</h3>
+    <div class="eq">r = m·v / |q|B &nbsp;&nbsp;·&nbsp;&nbsp; T = 2πm / |q|B</div>
+    <p><b>Radius grows with speed.</b> A stronger magnet (larger B) or a heavier particle (larger m) makes the turn tighter; a higher charge |q| makes it wider. A fast particle needs a big machine, not a fast clock.</p>
+    <p><b>The period ignores the speed.</b> Notice there is no v in T. This is the resonance condition the whole machine depends on — see the notes on the RF drive below.</p>
+    <div class="eq">E = V / d &nbsp;&nbsp;·&nbsp;&nbsp; ΔEₖ = |q|·V per crossing</div>
+    <p><b>Voltage makes field, field makes energy.</b> A big V across a thin gap d gives a strong E, but the energy handed over depends only on the voltage: a particle falling through a potential difference V gains qV, whether the gap is 1 cm or 1 m. Two crossings per turn means <b>2|q|V per turn</b> — that is the number to multiply by the turn count.</p>
+    <div class="eq">Eₘₐₓ = q²B²D² / 2m² &nbsp;&nbsp;(at r = D)</div>
+    <p><b>The size sets the ceiling.</b> Quadruple B and you quadruple the maximum energy. The only classical way past this is a bigger machine.</p>
+  </section>
+
+  <section>
+    <h3>Staying in step — the resonance condition ${infoBtn('rf')}</h3>
+    <p>The RF voltage is <b>alternating</b>, because it must push the particle forwards on one crossing and backwards-to-forwards on the next. A full voltage cycle therefore has to last exactly one orbit:</p>
+    <div class="eq">f<sub>RF</sub> = |q|B / 2πm = 1 / T</div>
+    <p>If the drive is even slightly off, the phase error grows a little every turn. The kick still happens, but increasingly <b>out of step</b>: sometimes it adds less, and past a half-cycle of error it starts taking energy <em>away</em>. The beam stops climbing, spirals inward and stalls. That is what the <b>Detune</b> button shows, and the oscilloscope in the corner shows the green kick dots sliding off the peaks of the yellow wave.</p>
+    <p>The same trick is why a cyclotron can accelerate a whole beam at once: every particle has the same T, so one oscillator keeps all of them in phase indefinitely.</p>
+  </section>
+
+  <section>
+    <h3>What this model leaves out ${infoBtn('fringe')}</h3>
+    <ul class="notes" style="list-style:none;padding:0">
+      <li class="try"><b>The kick is instantaneous.</b> Inside the gap the particle feels the field for a real (very short) time; here it is applied as one impulse at the gap centre. The energy bookkeeping is right, but the flight through the gap is skipped.</li>
+      <li class="try"><b>The orbit is held on the machine axis.</b> Each kick nudges the orbit centre sideways in reality; real machines use focusing coils to pull it back. Here it is snapped back exactly, which keeps the spiral tidy.</li>
+      <li class="try"><b>Perfect field, hard edge.</b> No fringe fields, no field ripple, no dee shape angled along the orbit ${infoBtn('deeangle')}, no scattering or energy loss in the vacuum.</li>
+      <li class="try"><b>No relativity.</b> Mass is constant. This is the assumption that eventually fails, and it is worth knowing exactly where and why ${infoBtn('relativity')}.</li>
+      <li class="try"><b>No extraction hardware.</b> A real machine steers the last orbit out with a deflector or kick-off magnet ${infoBtn('extract')}.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h3>Why the classical picture eventually fails ${infoBtn('relativity')}</h3>
+    <p>Everything above assumes the mass never changes. As v approaches c that stops being true: the particle behaves as if heavier, the orbit period lengthens, and the beam slowly slides out of phase with the RF. The failure is not sudden — it is exactly the resonance condition breaking, which is why it is fixed the same way a detuned machine is fixed.</p>
+    <ul style="font-size:12.2px;color:var(--muted);line-height:1.6;padding-left:19px;margin:0">
+      <li><b>Synchrocyclotron</b> — keep B fixed and <em>lower</em> the RF frequency continuously so it keeps matching the lengthening period. Cheap, gives a continuous spread of energies.</li>
+      <li><b>Synchrotron</b> — keep the RF fixed and <em>raise</em> B as the particles speed up, so r = mv/qB stays constant and the period never changes. This is what big machines like the LHC use.</li>
+    </ul>
+    <p style="margin-top:7px">The <b>Speed as fraction of c</b> readout is the warning light. The presets are tuned to stay near 0.1 c, where the classical model is comfortable; push the field or the dee size too far and the readout turns red.</p>
+  </section>
+
+  <section>
+    <h3>Words used above</h3>
+    <p><b>Dee</b> — one of the two hollow D-shaped electrodes. Only the gap between them has an electric field.<br>
+    <b>RF</b> — radio-frequency, the alternating voltage that drives the gap.<br>
+    <b>Orbit / turn</b> — one full trip around the machine.<br>
+    <b>Extraction</b> — getting the beam out of the machine and onto a target.<br>
+    <b>Beam</b> — the whole bunch of particles travelling together.<br>
+    <b>Kicker</b> — the small pulsed device that injects each particle into the first orbit.</p>
+  </section>
+</div>`;
+
+const elC = document.getElementById('controls');
+const elR = document.getElementById('readouts');
+const elLegend = document.getElementById('legend');
+const elHint = document.getElementById('hint');
+const elStage = document.getElementById('stage');
+const elBadge = document.getElementById('badge');
+
+function slider(id, label, min, max, step, val, unit) {
+  return `<div class="row"><label>${label}</label><span class="val" id="${id}_v">${val}${unit ? ' ' + unit : ''}</span></div>
+          <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}">`;
+}
+/* the gap voltage spans 0.05 V … 500 kV and the field 0.2 mT … 3 T, so both
+   sliders are logarithmic — otherwise the interesting range is a sliver */
+const LG_LO = -1.3, LG_HI = Math.log10(5e5);
+const toSlider = V => Math.round((Math.log10(V) - LG_LO) / (LG_HI - LG_LO) * 1000);
+const fromSlider = v => Math.pow(10, LG_LO + (v / 1000) * (LG_HI - LG_LO));
+const LB_LO = Math.log10(2e-4), LB_HI = Math.log10(3);
+const toBSlider = B => Math.round((Math.log10(B) - LB_LO) / (LB_HI - LB_LO) * 1000);
+const fromBSlider = s => Math.pow(10, LB_LO + (s / 1000) * (LB_HI - LB_LO));
+function voltSlider() { return toSlider(S.V); }
+function voltText(V) {
+  if (V >= 1e3) return (V / 1e3).toPrecision(3) + ' kV';
+  if (V >= 1) return V.toPrecision(3) + ' V';
+  return (V * 1e3).toPrecision(3) + ' mV';
+}
+function bText(B) {
+  if (B >= 1e-3) return B.toPrecision(3) + ' T';
+  if (B >= 1e-6) return (B * 1e3).toPrecision(3) + ' mT';
+  return (B * 1e6).toPrecision(3) + ' µT';
+}
+function toggle(id, label, checked) {
+  return `<label class="toggle"><span>${label}</span><span class="sw"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''}><i></i></span></label>`;
+}
+function bind(id, unit, fmt, after) {
+  const el = document.getElementById(id), out = document.getElementById(id + '_v');
+  if (!el) return;
+  const paint = () => {
+    el.style.setProperty('--p', ((el.value - el.min) / (el.max - el.min) * 100) + '%');
+    const v = parseFloat(el.value);
+    out.textContent = (fmt ? fmt(v) : v) + (unit ? ' ' + unit : '');
+    if (after) after(v);
+  };
+  el.addEventListener('input', paint); paint();
+}
+
+function build() {
+  const p = PRESETS[S.preset];
+  const custom = S.preset === 'custom';
+  elC.innerHTML = `
+    <h2 class="sec">The machine ${infoBtn('spiral')}</h2>
+    <div class="card">
+      <p>Charged particles are injected at the centre. A <strong>magnet</strong> ${infoBtn('B')} bends them into circles inside the two dees, and an <strong>alternating voltage</strong> ${infoBtn('E')} across the gap kicks them ${infoBtn('kick')} every time they cross it.</p>
+      <div class="formula">r = mv/|q|B &nbsp;·&nbsp; T = 2πm/|q|B</div>
+    </div>
+
+    <h2 class="sec">Particle</h2>
+    <div class="segs" id="presets">
+      ${Object.entries(PRESETS).map(([k, v]) =>
+        `<button class="seg ${S.preset === k ? 'active' : ''}" data-p="${k}">${v.name}</button>`).join('')}
+      <button class="seg ${custom ? 'active' : ''}" data-p="custom">Custom</button>
+    </div>
+    ${custom ? slider('mU', 'Mass', 0.05, 10, 0.01, S.massU, 'u') : ''}
+    ${custom ? slider('qE', 'Charge', -3, 3, 0.5, S.chargeE, 'e') : ''}
+    ${custom ? '' : `<div class="card"><p><strong>${p.name}</strong>: m = ${p.m} u = ${(p.m * U_KG).toExponential(2)} kg, q = ${p.q > 0 ? '+' : ''}${p.q}e. Pick <em>Custom</em> to try any other combination.</p></div>`}
+
+    <h2 class="sec">Fields</h2>
+    ${slider('mag', 'Magnetic field B', 0, 1000, 1, toBSlider(S.B), '')}
+    ${toggle('tMag', 'Magnet on (else: straight line)', S.magnetOn)}
+    ${toggle('tPol', 'B out of page (else: into page)', S.Bsign > 0)}
+    ${toggle('tRf', 'RF voltage on (else: constant circle)', S.rfOn)}
+    ${slider('volt', 'Potential difference V', 0, 1000, 1, voltSlider(), '')}
+    ${slider('drv', 'RF frequency vs. orbit frequency', 0.9, 1.1, 0.002, S.drive, '×')}
+
+    <h2 class="sec">Geometry &amp; speed ${infoBtn('limit')}</h2>
+    ${slider('dee', 'Dee radius D', 0.2, 0.9, 0.01, S.D, 'm')}
+    ${slider('ops', 'Playback speed', 0.5, 6, 0.5, S.ops, 'orbits/s')}
+
+    <div class="btns" style="margin-bottom:12px">
+      <button class="btn primary" id="btnPlay">⏸ Pause</button>
+      <button class="btn" id="btnReset">↺ Re-inject beam</button>
+    </div>
+    <div class="btns" style="margin-bottom:12px">
+      <button class="btn" data-demo="offmagnet">Magnet off</button>
+      <button class="btn" data-demo="offrf">RF off</button>
+      <button class="btn" data-demo="detune">Detune RF</button>
+      <button class="btn" data-demo="tune">Tune RF</button>
+    </div>
+    <div class="card">
+      <h2 class="sec" style="margin-bottom:6px">Try this ${infoBtn('polarity')}</h2>
+      <p><strong>Magnet off</strong> — with no field there is no Lorentz force, so the beam shoots straight out of the machine instead of curving.</p>
+      <p><strong>RF off</strong> — the field still bends the particles, but with no kicks they circle forever at constant speed and constant radius.</p>
+      <p><strong>Detune RF</strong> — nudge the drive to 0.965× and watch the green kick dots slide off the peaks of the voltage: the kick starts fighting the motion, the spiral unwinds, and the energy drains away.</p>
+      <p><strong>Tune RF</strong> — back to 1.000× and the dots snap onto the peaks and the beam climbs out to the dee edge again.</p>
+    </div>
+    <div class="card">
+      ${toggle('swTrail', 'Draw the spiral', S.show.trail)}
+      ${toggle('swCirc', 'Draw the orbit circles', S.show.circles)}
+      ${toggle('swVec', 'Draw radius &amp; velocity', S.show.vectors)}
+      ${toggle('swField', 'Draw B field symbols', S.show.field)}
+    </div>
+    <div class="card">
+      <p style="margin-bottom:6px">${infoBtn('kicker')} The beam is injected here already in phase with the RF, one quarter turn before its first gap crossing. A real machine has to <b>kick it into that orbit</b> with correct phase — miss by a fraction of a cycle and nothing works.</p>
+      <p>${infoBtn('extract')} Reaching the dee edge is the end of the acceleration. Real machines <b>deflect the last orbit out</b> into a target; this one simply parks the particle on the wall.</p>
+    </div>`;
+
+  elR.innerHTML = `
+    <h2 class="sec">The beam right now</h2>
+    <div class="verdict good" id="beamMsg" style="display:none;margin-bottom:10px"><b>Beam extracted.</b> Every particle reached the dee edge and was taken out of the machine. Press <b>Re-inject beam</b> to start again.</div>
+    <div id="mNow"></div>
+    <h2 class="sec">Growth of the orbit ${infoBtn('radius')}</h2>
+    <canvas id="gR"></canvas>
+    <div class="glegend"><span><i style="background:#4dd4ff"></i>mean orbit radius r (m)</span></div>
+    <h2 class="sec">Growth of the energy ${infoBtn('energy')}</h2>
+    <canvas id="gE"></canvas>
+    <div class="glegend"><span><i style="background:#ffb547"></i>mean kinetic energy (eV)</span></div>
+    <h2 class="sec">Inside the gap</h2>
+    <div id="mGap"></div>
+    <h2 class="sec">What is happening ${infoBtn('period')}</h2>
+    <div class="verdict info" id="verdict"></div>
+    ${DEEP_NOTES}`;
+
+  renderMetrics('mNow', MROWS);
+  renderMetrics('mGap', GAROWS);
+  for (const k in CELLS) delete CELLS[k];
+
+  elLegend.innerHTML =
+    chip('#4dd4ff', 'Path travelled', 'spiral') +
+    chip('#a970ff', 'Orbit circles &amp; particles', 'beam') +
+    chip('#ffb547', 'Electric field E', 'E') +
+    chip('#3ddc97', 'Velocity', 'radius') +
+    chip('#ff6b81', 'Mag field B', 'B');
+
+  wire();
+  updateHint();
+}
+function chip(color, label, key) {
+  return `<div class="chip"><span class="swatch" style="background:${color}"></span>${label}${infoBtn(key)}</div>`;
+}
+
+function wire() {
+  const refresh = () => { elStage.dataset.off = hasBend() && S.rfOn ? '0' : '1'; updateHint(); };
+  const b = (id, unit, fmt, after) => bind(id, unit, fmt, v => { after(v); refresh(); });
+
+  b('mag', '', bText, s => S.B = fromBSlider(s));
+  b('volt', '', voltText, v => S.V = fromSlider(v));
+  b('dee', 'm', v => v.toFixed(2), v => S.D = v);
+  b('drv', '×', v => v.toFixed(3), v => S.drive = v);
+  b('ops', 'orbits/s', v => v.toFixed(1), v => S.ops = v);
+  b('mU', 'u', v => v.toFixed(3), v => S.massU = v);
+  b('qE', 'e', v => v.toFixed(1), v => S.chargeE = v);
+
+  const sw = (id, fn) => { const e = document.getElementById(id); if (e) e.onchange = () => { fn(e.checked); refresh(); }; };
+  sw('tMag', v => S.magnetOn = v);
+  sw('tRf', v => S.rfOn = v);
+  sw('tPol', v => S.Bsign = v ? 1 : -1);
+  sw('swTrail', v => S.show.trail = v);
+  sw('swCirc', v => S.show.circles = v);
+  sw('swVec', v => S.show.vectors = v);
+  sw('swField', v => S.show.field = v);
+
+  document.getElementById('btnPlay').onclick = () => {
+    S.playing = !S.playing;
+    document.getElementById('btnPlay').textContent = S.playing ? '⏸ Pause' : '▶ Play';
+  };
+  document.getElementById('btnReset').onclick = () => { seedBeam(); refresh(); };
+  document.querySelectorAll('#presets .seg').forEach(b => b.onclick = () => {
+    S.preset = b.dataset.p;
+    if (S.preset !== 'custom') { S.massU = PRESETS[S.preset].m; S.chargeE = PRESETS[S.preset].q; S.B = PRESETS[S.preset].B0; }
+    S.V = autoVoltage();          // a voltage that gives roughly 30 useful turns
+    seedBeam(); build();
+  });
+  document.querySelectorAll('[data-demo]').forEach(b => b.onclick = () => demo(b.dataset.demo));
+  elStage.dataset.off = hasBend() && S.rfOn ? '0' : '1';
+  updateHint();
+}
+
+/* a mass or charge that cannot orbit is a legitimate (if boring) machine */
+function nudge(id, val) {
+  const e = document.getElementById(id);
+  if (!e) return;
+  e.value = val;
+  e.dispatchEvent(new Event('input'));
+}
+
+function setToggle(id, val) { const e = document.getElementById(id); if (e) e.checked = val; }
+/* a gap voltage that puts the dee edge about 30 turns away */
+function autoVoltage() {
+  const v = keMax() / (2 * Math.abs(charge()) * 30);
+  return clamp(v, fromSlider(0), fromSlider(1000));
+}
+function demo(kind) {
+  if (kind === 'offmagnet') { S.magnetOn = false; setToggle('tMag', false); }
+  if (kind === 'offrf') { S.rfOn = false; setToggle('tRf', false); }
+  if (kind === 'detune') { S.rfOn = true; setToggle('tRf', true); nudge('drv', 0.965); }
+  if (kind === 'tune') { S.rfOn = true; setToggle('tRf', true); nudge('drv', 1); }
+  elStage.dataset.off = hasBend() && S.rfOn ? '0' : '1';
+  updateHint();
+}
+
+function updateHint() {
+  if (!hasBend()) elHint.innerHTML = '<b>No field bending.</b> With the magnet off — or with zero charge or zero field — the Lorentz force vanishes and the beam leaves in straight lines.';
+  else if (!S.rfOn) elHint.innerHTML = '<b>RF off:</b> the field still bends the particles, but with no kicks they circle forever at constant speed.';
+  else if (Math.abs(S.drive - 1) > 0.004) elHint.innerHTML = '<b>Detuned drive:</b> the voltage peaks arrive at the wrong moment, so the kick fights the motion and the beam loses energy.';
+  else elHint.innerHTML = 'In tune: every gap crossing lands on a voltage peak, so the beam gains <b>2|q|V</b> per turn.';
+}
+
+/* =================================================================== */
+/*  Canvas rendering                                                    */
+/* =================================================================== */
+const cv = document.getElementById('scene');
+const ctx = cv.getContext('2d');
+let W = 900, H = 600, CX = 450, CY = 300, SC = 600;
+function layout() {
+  SC = (Math.min(W, H) * 0.82) / (2 * S.D);
+  CX = W / 2; CY = H / 2 + 6;
+}
+const TX = x => CX + x * SC;
+const TY = y => CY - y * SC;
+
+function resize() {
+  const r = cv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+  W = r.width; H = r.height;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  layout();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('resize', layout);
+
+function drawField() {
+  const gap = TX(gapWidth() / 2);
+  const step = 62;
+  ctx.save();
+  ctx.lineWidth = 1.2;
+  const out = S.Bsign > 0;
+  for (let x = step; x < W; x += step) {
+    for (let y = step; y < H; y += step) {
+      if (Math.abs(x - CX) < gap + 12) continue;
+      if (Math.hypot(x - CX, y - CY) > S.D * SC + 34) continue;
+      ctx.strokeStyle = 'rgba(255,107,129,.30)';
+      const r = 4.4;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.stroke();
+      ctx.beginPath();
+      if (out) { ctx.moveTo(x - 2, y); ctx.lineTo(x + 2, y); ctx.moveTo(x, y - 2); ctx.lineTo(x, y + 2); }
+      else { ctx.moveTo(x - 2.4, y - 2.4); ctx.lineTo(x + 2.4, y + 2.4); ctx.moveTo(x + 2.4, y - 2.4); ctx.lineTo(x - 2.4, y + 2.4); }
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawDees() {
+  const R = S.D * SC, gap = TX(gapWidth() / 2);
+  const gw = gap - CX;
+  ctx.save();
+  for (const s of [-1, 1]) {
+    const col = s < 0 ? '77,212,255' : '169,112,255';
+    const g = ctx.createRadialGradient(CX + s * gw, CY, 4, CX + s * gw, CY, R);
+    g.addColorStop(0, `rgba(${col},.10)`);
+    g.addColorStop(1, `rgba(${col},.05)`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(CX + s * gw, CY, R, s < 0 ? Math.PI / 2 : -Math.PI / 2, s < 0 ? Math.PI * 1.5 : Math.PI / 2);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = `rgba(${col},.55)`; ctx.lineWidth = 2; ctx.stroke();
+  }
+  /* outer machine wall */
+  ctx.setLineDash([6, 7]);
+  ctx.strokeStyle = 'rgba(200,220,255,.25)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(CX, CY, R + 10, 0, 7); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawRotationHint() {
+  if (!hasBend()) return;
+  const R = S.D * SC * 0.3;
+  const cw = omega() > 0;                    // clockwise for a positive charge, B out of page
+  ctx.save();
+  ctx.globalAlpha = .5;
+  ctx.strokeStyle = '#e6edf8'; ctx.lineWidth = 1.4; ctx.lineCap = 'round';
+  const a0 = cw ? 2.5 : 0.6, a1 = cw ? 0.6 : 2.5;   // sweep
+  ctx.beginPath(); ctx.arc(CX, CY, R, a0, a1, cw); ctx.stroke();
+  /* arrow head at the end of the sweep */
+  const ex = CX + R * Math.cos(a1), ey = CY + R * Math.sin(a1);
+  const dir = a1 - a0;
+  ctx.fillStyle = '#e6edf8';
+  ctx.beginPath();
+  ctx.moveTo(ex + 7 * Math.cos(a1), ey + 7 * Math.sin(a1));
+  ctx.lineTo(ex + 9 * Math.cos(a1 - dir * 0.9), ey + 9 * Math.sin(a1 - dir * 0.9));
+  ctx.lineTo(ex + 9 * Math.cos(a1 + dir * 0.9), ey + 9 * Math.sin(a1 + dir * 0.9));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+  tag(CX, CY - R - 14, 'B ' + (S.Bsign > 0 ? 'out of page' : 'into page') + '  ·  turns ' + (cw ? 'clockwise' : 'anticlockwise'), 'rgba(230,237,248,.75)');
+}
+
+function drawGap() {
+  const gw = TX(gapWidth() / 2), gapPx = Math.max(5, gw - CX);
+  const w = S.rfOn ? omega() * S.drive : 0;
+  const s = S.rfOn ? Math.cos(w * (S.t - S.rfT0)) : 0;
+  const inten = Math.abs(s);
+  const dir = s >= 0 ? 1 : -1;
+  const col = S.rfOn ? (dir > 0 ? '255,181,71' : '255,92,200') : '120,140,180';
+  ctx.save();
+  const g = ctx.createLinearGradient(CX - gapPx, 0, CX + gapPx, 0);
+  g.addColorStop(0, `rgba(${col},${0.10 + 0.5 * inten})`);
+  g.addColorStop(.5, `rgba(${col},${0.25 + 0.65 * inten})`);
+  g.addColorStop(1, `rgba(${col},${0.10 + 0.5 * inten})`);
+  ctx.fillStyle = g;
+  ctx.shadowColor = `rgba(${col},.8)`; ctx.shadowBlur = 12 + 26 * inten;
+  ctx.fillRect(CX - gapPx, CY - S.D * SC, gapPx * 2, S.D * SC * 2);
+  ctx.restore();
+
+  /* E-field arrow */
+  if (S.rfOn && inten > 0.04) {
+    const y = CY - S.D * SC + 34;
+    const L = 26 * dir;
+    arrow(CX - L, y, CX + L, y, `rgb(${col})`, 3);
+    tag(CX + L + 26 * dir, y, 'E', `rgb(${col})`);
+  }
+  /* dashed dee inner edges */
+  ctx.save();
+  ctx.strokeStyle = 'rgba(200,225,255,.35)'; ctx.lineWidth = 1.4; ctx.setLineDash([4, 5]);
+  ctx.beginPath();
+  ctx.moveTo(CX - gapPx, CY - S.D * SC); ctx.lineTo(CX - gapPx, CY + S.D * SC);
+  ctx.moveTo(CX + gapPx, CY - S.D * SC); ctx.lineTo(CX + gapPx, CY + S.D * SC);
+  ctx.stroke();
+  ctx.restore();
+  return s;
+}
+
+function arrow(x1, y1, x2, y2, color, width) {
+  const a = Math.atan2(y2 - y1, x2 - x1), len = Math.hypot(x2 - x1, y2 - y1);
+  if (len < 2) return;
+  ctx.save();
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  const hs = Math.max(7, width * 3.1);
+  ctx.beginPath(); ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hs * Math.cos(a - .42), y2 - hs * Math.sin(a - .42));
+  ctx.lineTo(x2 - hs * Math.cos(a + .42), y2 - hs * Math.sin(a + .42));
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+function tag(x, y, text, color) {
+  ctx.save();
+  ctx.font = '600 11px "Segoe UI",sans-serif';
+  const w = ctx.measureText(text).width + 12;
+  ctx.fillStyle = 'rgba(7,11,20,.82)';
+  ctx.strokeStyle = color; ctx.lineWidth = 1;
+  roundRect(x - w / 2, y - 9, w, 18, 6); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, x, y); ctx.restore();
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+function drawBeam() {
+  const R = S.D * SC;
+  /* the circular orbit each particle is riding right now */
+  if (S.show.circles) {
+    ctx.save();
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([2, 4]);
+    for (const p of S.parts) {
+      if (p.done) continue;
+      const r = Math.hypot(p.x, p.y);
+      if (r * SC < 2) continue;
+      ctx.strokeStyle = 'rgba(169,112,255,.40)';
+      ctx.beginPath(); ctx.arc(CX, CY, r * SC, 0, 7); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* arcs of the spirals */
+  if (S.show.trail) {
+    ctx.save(); ctx.lineCap = 'round';
+    for (const p of S.parts) {
+      if (p.segs.length < 2) continue;
+      ctx.beginPath();
+      for (const s of p.segs) {
+        const a0 = -s.th, r = s.r * SC;
+        if (r < 0.6) continue;
+        ctx.moveTo(TX(s.cx) + r * Math.cos(a0), TY(s.cy) - r * Math.sin(a0));
+        ctx.arc(TX(s.cx), TY(s.cy), r, a0, a0 + Math.PI, false);
+      }
+      /* current partial arc */
+      if (!p.done) {
+        const r = Math.hypot(p.x - p.cx, p.y - p.cy) * SC;
+        if (r > 0.6) ctx.arc(TX(p.cx), TY(p.cy), r, -p.th0, -p.th0 + Math.abs(p.phi), false);
+      }
+      const a = p.done ? .22 : .5;
+      ctx.globalAlpha = a;
+      ctx.strokeStyle = '#4dd4ff'; ctx.lineWidth = p.done ? 1 : 1.6;
+      ctx.shadowColor = 'rgba(77,212,255,.7)'; ctx.shadowBlur = 6;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    ctx.restore();
+  }
+
+  /* ion source at the centre */
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,.85)';
+  ctx.beginPath(); ctx.arc(CX, CY, 3.2, 0, 7); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(CX, CY, 9, 0, 7); ctx.stroke();
+  ctx.restore();
+
+  /* particles, brightest one gets the annotations */
+  let lead = null, best = -1;
+  for (const p of S.parts) {
+    const r = Math.hypot(p.x, p.y);
+    if (r > best) { best = r; lead = p; }
+    const x = TX(p.x), y = TY(p.y);
+    if (p.done) {
+      ctx.save(); ctx.globalAlpha = .35;
+      ctx.fillStyle = '#3ddc97';
+      ctx.beginPath(); ctx.arc(x, y, 3.4, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#3ddc9788'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x, y, 9, 0, 7); ctx.stroke();
+      ctx.restore();
+      continue;
+    }
+    ctx.save();
+    ctx.shadowColor = p.glow > .1 ? '#ffb547' : '#a970ff';
+    ctx.shadowBlur = 12 + 10 * p.glow;
+    ctx.fillStyle = p.glow > .1 ? '#ffb547' : '#a970ff';
+    ctx.beginPath(); ctx.arc(x, y, 4.2, 0, 7); ctx.fill();
+    ctx.restore();
+  }
+
+  if (S.show.vectors && lead && !lead.done) {
+    const v = Math.hypot(lead.vx, lead.vy);
+    const ux = lead.vx / v, uy = lead.vy / v;
+    const L = Math.min(96, 26 + v * 1.4e-3);
+
+    /* the full circle the lead particle is currently on */
+    ctx.save();
+    ctx.setLineDash([9, 7]); ctx.strokeStyle = 'rgba(255,255,255,.42)'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(CX, CY, Math.hypot(lead.x, lead.y) * SC, 0, 7); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    arrow(TX(lead.x), TY(lead.y), TX(lead.x) + ux * L, TY(lead.y) - uy * L, '#3ddc97', 2.6);
+    /* radius line to the machine centre */
+    ctx.save();
+    ctx.setLineDash([5, 5]); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(CX, CY); ctx.lineTo(TX(lead.x), TY(lead.y)); ctx.stroke();
+    ctx.restore();
+    const mid = TX(lead.x / 2), midY = TY(lead.y / 2);
+    tag(mid, midY - 14, 'r = ' + (Math.hypot(lead.x, lead.y) * 100).toFixed(1) + ' cm', '#e6edf8');
+    tag(TX(lead.x) + ux * L + 16, TY(lead.y) - uy * L, v.toExponential(2) + ' m/s', '#3ddc97');
+    tag(TX(lead.x), TY(lead.y) + 26, S.chargeE > 0 ? '+' + S.chargeE + 'e ion' : S.chargeE + 'e', '#a970ff');
+  }
+  return lead;
+}
+
+function drawScaleBar() {
+  const metres = SC * SC > 1400 ? 0.1 : 0.2;
+  const px = metres * SC, x = 20, y = H - 20;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(200,220,255,.6)'; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(x, y); ctx.lineTo(x + px, y);
+  ctx.moveTo(x, y - 5); ctx.lineTo(x, y + 5);
+  ctx.moveTo(x + px, y - 5); ctx.lineTo(x + px, y + 5);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(200,220,255,.75)'; ctx.font = '600 10.5px "Segoe UI",sans-serif';
+  ctx.textAlign = 'center'; ctx.fillText((metres * 100).toFixed(0) + ' cm', x + px / 2, y - 9);
+  ctx.restore();
+}
+
+/* --------------------------------------------------------- RF scope */
+const scopeCv = document.getElementById('scopeCv');
+function drawScope() {
+  const r = scopeCv.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+  if (scopeCv.width !== Math.round(r.width * dpr)) { scopeCv.width = Math.round(r.width * dpr); scopeCv.height = Math.round(r.height * dpr); }
+  const c = scopeCv.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = r.width, h = r.height;
+  c.clearRect(0, 0, w, h);
+  const P = orbitPeriod(), wac = S.rfOn && P > 0 ? omega() * S.drive : 0;
+  const span = 2.2 * (P || 1e-6);             // show a bit more than two orbits
+  const t0 = S.t - span * 0.78, t1 = S.t + span * 0.22;
+  const X = t => ((t - t0) / (t1 - t0)) * w;
+
+  c.strokeStyle = 'rgba(120,150,210,.18)'; c.lineWidth = 1;
+  c.beginPath(); c.moveTo(0, h / 2); c.lineTo(w, h / 2); c.stroke();
+
+  if (!S.rfOn || !wac) {
+    c.fillStyle = 'rgba(147,164,196,.75)'; c.font = '600 10px "Segoe UI",sans-serif';
+    c.textAlign = 'center'; c.fillText(S.rfOn ? 'NO FIELD BENDING' : 'RF OFF — flat line', w / 2, h / 2 + 4);
+    document.getElementById('scopeTxt').textContent = S.rfOn ? 'no orbit to synchronise with' : 'no kicks, constant speed';
+    return;
+  }
+  /* ideal peak markers */
+  c.strokeStyle = 'rgba(61,220,151,.35)'; c.setLineDash([3, 3]);
+  for (const k of S.kicks) {
+    if (k < t0) continue;
+    c.beginPath(); c.moveTo(X(k), 6); c.lineTo(X(k), h - 4); c.stroke();
+    c.fillStyle = 'rgba(61,220,151,.9)';
+    c.beginPath(); c.arc(X(k), h / 2 - (h / 2 - 8) * Math.cos(wac * (k - S.rfT0)), 3, 0, 7); c.fill();
+  }
+  c.setLineDash([]);
+
+  c.beginPath(); c.lineWidth = 1.8;
+  for (let i = 0; i <= w; i += 2) {
+    const t = t0 + (i / w) * (t1 - t0);
+    const v = Math.cos(wac * (t - S.rfT0)) * (h / 2 - 8);
+    i ? c.lineTo(i, h / 2 - v) : c.moveTo(i, h / 2 - v);
+  }
+  c.strokeStyle = '#ffb547'; c.stroke();
+  c.lineTo(w, h / 2); c.lineTo(0, h / 2); c.closePath();
+  c.fillStyle = 'rgba(255,181,71,.10)'; c.fill();
+
+  /* the newest kick, enlarged */
+  const last = S.kicks[S.kicks.length - 1];
+  const txt = document.getElementById('scopeTxt');
+  if (last != null && last >= t0) {
+    c.fillStyle = '#3ddc97';
+    c.beginPath(); c.arc(X(last), h / 2 - (h / 2 - 8) * Math.cos(wac * (last - S.rfT0)), 4, 0, 7); c.fill();
+    const ideal = Math.abs(S.kickPhase || 0) < 0.14;
+    txt.innerHTML = ideal ? 'green dots = kicks on the peaks ✓' : 'kicks drift off the peaks ✗';
+  } else txt.textContent = 'kicks must land on the peaks';
+}
+
+/* =================================================================== */
+/*  Readouts                                                            */
+/* =================================================================== */
+/* Metric rows are built ONCE per panel. Rebuilding them on every frame would
+   swap the DOM out from under the pointer, so a click on a "?" button would
+   never complete (mousedown and mouseup land on different elements). */
+const MROWS = [
+  { id: 'mr', k: 'Orbit radius r', u: 'cm', c: '#4dd4ff', key: 'radius' },
+  { id: 'mv', k: 'Speed v', u: 'm/s', c: '#3ddc97' },
+  { id: 'me', k: 'Kinetic energy', u: '', c: '#ffb547', key: 'energy' },
+  { id: 'mf', k: 'Fraction of Eₘₐₓ', u: '%', c: '#e6edf8', key: 'limit' },
+  { id: 'mb', k: 'Speed as fraction of c', u: '%', c: '#3ddc97' },
+  { id: 'mfq', k: 'Orbit frequency', u: 'MHz', c: '#a970ff', key: 'rf' },
+  { id: 'mp', k: 'Orbit period T', u: 'ns', c: '#a970ff', key: 'period' },
+  { id: 'mt', k: 'Turns completed', u: '', c: '#4dd4ff' },
+  { id: 'mn', k: 'Particles in flight', u: '', c: '#e6edf8', key: 'beam' }
+];
+const GAROWS = [
+  { id: 'gE', k: 'Field strength E', u: 'kV/m', c: '#ffb547', key: 'E' },
+  { id: 'gd', k: 'Gap width d', u: 'cm', c: '#e6edf8' },
+  { id: 'gk', k: 'Energy per crossing', u: 'keV', c: '#ff5cc8', key: 'kick' },
+  { id: 'gt', k: 'Energy per turn', u: 'keV', c: '#ff5cc8' },
+  { id: 'grf', k: 'RF frequency', u: 'MHz', c: '#3ddc97', key: 'rf' },
+  { id: 'gph', k: 'Phase error at kick', u: '°', c: '#3ddc97', key: 'rf' }
+];
+function rowHTML(d) {
+  return `<div class="metric"><span class="k"><span style="width:8px;height:8px;border-radius:2px;background:${d.c};display:inline-block"></span>${d.k}${d.key ? infoBtn(d.key) : ''}</span>` +
+         `<span class="v" id="${d.id}_w" style="color:${d.c}"><span id="${d.id}_v">—</span><span class="u" id="${d.id}_u">${d.u}</span></span></div>`;
+}
+function renderMetrics(hostId, defs) {
+  const host = document.getElementById(hostId);
+  if (host) host.innerHTML = defs.map(rowHTML).join('');
+}
+const CELLS = {};
+function setM(id, v, u, color) {
+  const cell = CELLS[id] || (CELLS[id] = {
+    v: document.getElementById(id + '_v'),
+    u: document.getElementById(id + '_u'),
+    w: document.getElementById(id + '_w')
+  });
+  if (!cell.v) return;
+  let s = String(v);
+  if (/NaN|Infinity/.test(s)) { s = '—'; if (u !== undefined) cell.u.textContent = ''; }
+  else if (u !== undefined) cell.u.textContent = u || '';
+  if (cell.v.textContent !== s) cell.v.textContent = s;
+  if (color && cell.w && cell.w.style.color !== color) cell.w.style.color = color;
+}
+function meanLive() {
+  const live = S.parts.filter(p => !p.done);
+  if (!live.length) return null;
+  const n = live.length;
+  const v = live.reduce((a, p) => a + Math.hypot(p.vx, p.vy), 0) / n;
+  const r = live.reduce((a, p) => a + Math.hypot(p.x, p.y), 0) / n;
+  const ke = 0.5 * mass() * v * v;
+  return { n, v, r, ke, kicks: Math.round(live.reduce((a, p) => a + p.n, 0) / n) };
+}
+let lastPaint = 0;
+function paint(now) {
+  if (now - lastPaint < 70) return;
+  lastPaint = now;
+  const m = meanLive();
+  const banner = document.getElementById('beamMsg'), gapBox = document.getElementById('mGap');
+  if (!m) {
+    if (banner && banner.style.display === 'none') banner.style.display = '';
+    if (gapBox) gapBox.style.display = 'none';
+    const v0 = document.getElementById('verdict');
+    if (v0) { v0.className = 'verdict good'; v0.innerHTML = 'All particles have left the dees. Their energy was capped purely by the size of the machine — the classical limit of the cyclotron.'; }
+    drawGraphs(); return;
+  }
+  if (banner) banner.style.display = 'none';
+  if (gapBox) gapBox.style.display = '';
+
+  const P = orbitPeriod(), f = freq();
+  const c = Math.abs(charge());
+  const beta = m.v / C_LIGHT;
+  const idle = P <= 0;
+  setM('mr', (m.r * 100).toFixed(1), 'cm');
+  setM('mv', m.v.toExponential(3), 'm/s');
+  setM('me', fmtE(m.ke), '');
+  setM('mf', keMax() > 0 ? (100 * m.ke / keMax()).toFixed(1) : '—', '%');
+  setM('mb', (beta * 100).toFixed(2), '%', beta > 0.3 ? '#ff6b81' : '#3ddc97');
+  setM('mfq', idle ? '—' : (f / 1e6).toPrecision(4), 'MHz');
+  setM('mp', idle ? '—' : (P * 1e9).toPrecision(4), 'ns');
+  setM('mt', (m.kicks / 2).toFixed(1), '');
+  setM('mn', m.n, 'of 12');
+
+  const phaseErr = (S.kickPhase == null ? 0 : S.kickPhase) * 180 / Math.PI;
+  setM('gE', (eField() / 1e3).toFixed(1), 'kV/m');
+  setM('gd', (gapWidth() * 100).toFixed(1), 'cm');
+  setM('gk', (c * S.V / EV / 1e3).toFixed(1), 'keV');
+  setM('gt', (2 * c * S.V / EV / 1e3).toFixed(1), 'keV');
+  setM('grf', idle ? '—' : (Math.abs(omega() * S.drive) / (2 * Math.PI) / 1e6).toPrecision(4), 'MHz');
+  setM('gph', phaseErr.toFixed(1), '°', Math.abs(phaseErr) < 8 ? '#3ddc97' : '#ff6b81');
+
+  const v = document.getElementById('verdict');
+  if (idle) { v.className = 'verdict warn'; v.innerHTML = '<b>Nothing to bend.</b> With the charge or the field at zero there is no magnetic force, so the orbit period is undefined and the beam simply flies out of the machine in straight lines. Turn the <b>magnet</b> on and give the particle a non-zero charge.'; }
+  else if (!S.magnetOn) { v.className = 'verdict warn'; v.innerHTML = '<b>Magnet off.</b> Without B there is no Lorentz force, so the beam leaves the machine in straight lines. The magnets are what bend it back for another pass.'; }
+  else if (!S.rfOn) { v.className = 'verdict warn'; v.innerHTML = '<b>RF off.</b> The particles still curve, but nothing adds energy: they circle at constant speed, exactly as a magnetic field alone should. The gap voltage is the only energy source here.'; }
+  else if (Math.abs(S.drive - 1) > 0.004) { v.className = 'verdict warn'; v.innerHTML = '<b>Out of tune.</b> The RF is at ' + S.drive.toFixed(3) + '× the orbit frequency, so the phase error is ' + phaseErr.toFixed(0) + '°. The kick now fights the motion, the beam loses energy and the spiral unwinds. Set the drive back to 1.000×.'; }
+  else if (beta > 0.3) { v.className = 'verdict warn'; v.innerHTML = '<b>Leaving the classical regime.</b> The beam is at ' + (beta * 100).toFixed(0) + '% of c, where mass starts to change with speed and the period is no longer constant — real machines switch to a <b>synchrocyclotron</b> here. This model stays on purpose in the simple picture, so lower B, D or the voltage to stay below ~0.1 c.'; }
+  else { v.className = 'verdict good'; v.innerHTML = '<b>In tune.</b> The measured period ' + (P * 1e9).toPrecision(4) + ' ns matches T = 2πm/|q|B and stays constant while the radius grows, so every kick lands on a voltage peak. The beam has made <b>' + (m.kicks / 2).toFixed(1) + ' turns</b> and gained <b>' + fmtE(2 * (m.kicks / 2) * c * S.V) + '</b> — the 2|q|V per turn seen on the graph.'; }
+  drawGraphs();
+}
+function fmtE(joules) {
+  const e = joules / EV;
+  if (!isFinite(e)) return '—';
+  if (e >= 1e6) return (e / 1e6).toPrecision(4) + ' MeV';
+  if (e >= 1e3) return (e / 1e3).toPrecision(4) + ' keV';
+  return e.toPrecision(4) + ' eV';
+}
+
+function graph(id, arr, color, label, fmt) {
+  const g = document.getElementById(id); if (!g) return;
+  const r = g.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2);
+  if (g.width !== Math.round(r.width * dpr)) { g.width = Math.round(r.width * dpr); g.height = Math.round(r.height * dpr); }
+  const c = g.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = r.width, h = r.height;
+  c.clearRect(0, 0, w, h);
+  c.strokeStyle = 'rgba(120,150,210,.10)'; c.lineWidth = 1;
+  for (let i = 1; i < 4; i++) { c.beginPath(); c.moveTo(0, h * i / 4); c.lineTo(w, h * i / 4); c.stroke(); }
+  let max = 1e-9;
+  for (const v of arr) max = Math.max(max, v);
+  max *= 1.15;
+  c.fillStyle = 'rgba(147,164,196,.85)'; c.font = '9.5px Consolas,monospace';
+  c.textAlign = 'right'; c.fillText(fmt(max), w - 4, 11);
+  c.textAlign = 'left'; c.fillText('0', 4, h - 4);
+  if (arr.length < 2) return;
+  c.beginPath(); c.lineWidth = 2; c.lineJoin = 'round'; c.strokeStyle = color;
+  for (let i = 0; i < arr.length; i++) {
+    const X = 4 + (i / (arr.length - 1)) * (w - 8);
+    const Y = h - 6 - (arr[i] / max) * (h - 16);
+    i ? c.lineTo(X, Y) : c.moveTo(X, Y);
+  }
+  c.stroke();
+  c.lineTo(w, h); c.lineTo(4, h); c.closePath();
+  const g2 = c.createLinearGradient(0, 0, 0, h);
+  g2.addColorStop(0, color + '33'); g2.addColorStop(1, color + '00');
+  c.fillStyle = g2; c.fill();
+}
+function drawGraphs() {
+  graph('gR', S.hist.r, '#4dd4ff', 'radius', v => v.toFixed(2) + ' m');
+  graph('gE', S.hist.e, '#ffb547', 'energy', v => v >= 1e6 ? (v / 1e6).toFixed(2) + ' MeV' : (v / 1e3).toPrecision(3) + ' keV');
+}
+
+/* =================================================================== */
+/*  Main loop                                                           */
+/* =================================================================== */
+let last = performance.now();
+function loop(now) {
+  const wall = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  try { frame(wall); } catch (err) { showFatal(err.message); console.error(err); }
+  requestAnimationFrame(loop);
+}
+function frame(wall) {
+  const P = orbitPeriod();
+  if (S.playing && P > 0) {
+    const simDt = S.ops * P / 60;                 // sim seconds per 1/60 s of wall time
+    const n = clamp(Math.round(wall * 60) * 16, 16, 140);
+    const dt = simDt / n;
+    for (let i = 0; i < n; i++) stepAll(dt);
+  }
+  for (const p of S.parts) if (p.done) p.glow = Math.max(0, p.glow - wall * 1.6);
+
+  ctx.clearRect(0, 0, W, H);
+  if (S.show.field) drawField();
+  drawDees();
+  drawRotationHint();
+  drawGap();
+  drawBeam();
+  drawScaleBar();
+  drawScope();
+  paint(performance.now());
+}
+function showFatal(msg) {
+  let el = document.getElementById('fatal');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'fatal';
+    el.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:999;max-width:92vw;' +
+      'background:rgba(60,10,20,.95);border:1px solid #ff6b81;color:#ffd7de;padding:10px 14px;border-radius:10px;' +
+      'font:12.5px/1.5 Consolas,monospace;white-space:pre-wrap';
+    document.body.appendChild(el);
+  }
+  el.textContent = 'Sim error: ' + msg;
+}
+window.addEventListener('error', e => showFatal(e.message));
+
+/* ------------------------------------------------------------- startup */
+S.V = autoVoltage();
+resize();
+seedBeam();
+build();
+if (window.ResizeObserver) new ResizeObserver(resize).observe(elStage);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Circular Motion &amp; Centripetal Force — Interactive Simulator</title>
+<style>
+  :root{
+    --bg:#070a12;
+    --bg2:#0d1424;
+    --panel:rgba(18,26,45,.72);
+    --panel-solid:#111a2e;
+    --line:rgba(120,150,210,.16);
+    --line-strong:rgba(130,170,255,.34);
+    --txt:#e6edf8;
+    --muted:#93a4c4;
+    --accent:#4dd4ff;
+    --accent2:#a970ff;
+    --good:#3ddc97;
+    --warn:#ffb547;
+    --bad:#ff6b81;
+    --magenta:#ff5cc8;
+    --radius:16px;
+    --shadow:0 18px 50px rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Segoe UI",Inter,system-ui,-apple-system,Roboto,sans-serif;
+    color:var(--txt);
+    background:
+      radial-gradient(1100px 700px at 12% -10%, rgba(77,212,255,.14), transparent 60%),
+      radial-gradient(900px 650px at 95% 0%, rgba(169,112,255,.16), transparent 62%),
+      radial-gradient(800px 700px at 60% 120%, rgba(61,220,151,.08), transparent 60%),
+      linear-gradient(180deg,#070a12,#0a0f1c 60%,#070a12);
+    overflow:hidden;
+  }
+  .app{height:100%;display:flex;flex-direction:column}
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;align-items:center;gap:16px;padding:12px 20px;
+    border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,rgba(14,22,40,.9),rgba(10,16,30,.55));
+    backdrop-filter:blur(14px);
+    z-index:20;flex:0 0 auto;
+  }
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}
+  .logo{
+    width:40px;height:40px;border-radius:12px;flex:0 0 auto;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    display:grid;place-items:center;font-size:20px;
+    box-shadow:0 0 22px rgba(77,212,255,.45);
+  }
+  .brand h1{font-size:17px;letter-spacing:.3px;font-weight:650;white-space:nowrap}
+  .brand p{font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .tabs{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap}
+  .navgroup{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .tabs + .navgroup{margin-left:0}
+  .navlink{
+    display:flex;align-items:center;gap:8px;text-decoration:none;
+    padding:9px 15px;border-radius:11px;font-size:12.5px;font-weight:600;
+    border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--muted);
+    transition:.18s;white-space:nowrap;
+  }
+  .navlink:hover{color:var(--txt);border-color:var(--line-strong);transform:translateY(-1px);
+    box-shadow:0 6px 18px rgba(77,212,255,.18)}
+  .tab{
+    position:relative;display:flex;align-items:center;gap:8px;
+    padding:9px 15px;border-radius:11px;cursor:pointer;
+    border:1px solid var(--line);background:rgba(255,255,255,.03);
+    color:var(--muted);font-size:13px;font-weight:600;transition:.18s;
+  }
+  .tab .num{
+    width:20px;height:20px;border-radius:6px;display:grid;place-items:center;
+    font-size:11px;background:rgba(255,255,255,.08);color:var(--txt);
+  }
+  .tab:hover{color:var(--txt);border-color:var(--line-strong);transform:translateY(-1px)}
+  .tab.active{
+    color:#04121c;background:linear-gradient(135deg,var(--accent),#8ad9ff);
+    border-color:transparent;box-shadow:0 6px 20px rgba(77,212,255,.35);
+  }
+  .tab.active .num{background:rgba(0,0,0,.22);color:#04121c}
+
+  /* ---------- layout ---------- */
+  main{
+    flex:1 1 auto;display:grid;grid-template-columns:322px minmax(0,1fr) 336px;
+    grid-template-rows:minmax(0,1fr);
+    gap:14px;padding:14px;min-height:0;
+  }
+  .panel{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);backdrop-filter:blur(16px);
+    overflow-y:auto;overflow-x:hidden;padding:16px;min-height:0;
+  }
+  .panel::-webkit-scrollbar,.stage::-webkit-scrollbar{width:9px}
+  .panel::-webkit-scrollbar-thumb,.stage::-webkit-scrollbar-thumb{background:rgba(120,160,230,.22);border-radius:9px}
+  .panel::-webkit-scrollbar-track{background:transparent}
+
+  /* ---------- stage ---------- */
+  .stage{
+    position:relative;border-radius:var(--radius);overflow:hidden;
+    border:1px solid var(--line);box-shadow:var(--shadow);min-height:0;
+    background:linear-gradient(180deg,rgba(12,20,36,.55),rgba(8,13,24,.75));
+  }
+  #scene{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+  .stage-badge{
+    position:absolute;top:14px;left:16px;display:flex;gap:8px;align-items:center;
+    font-size:11.5px;color:var(--muted);letter-spacing:.4px;text-transform:uppercase;
+    background:rgba(7,11,20,.6);border:1px solid var(--line);padding:6px 12px;border-radius:20px;
+    backdrop-filter:blur(6px);pointer-events:none;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 10px var(--good);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .legend{
+    position:absolute;left:16px;bottom:14px;display:flex;flex-wrap:wrap;gap:6px;max-width:74%;
+  }
+  .chip{
+    display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--txt);
+    background:rgba(9,14,26,.78);border:1px solid var(--line);
+    padding:6px 9px;border-radius:9px;backdrop-filter:blur(6px);
+  }
+  .chip .swatch{width:14px;height:3px;border-radius:2px}
+  .stage-hint{
+    position:absolute;right:16px;bottom:14px;font-size:11.5px;color:var(--muted);
+    background:rgba(9,14,26,.78);border:1px solid var(--line);padding:7px 12px;border-radius:10px;
+    backdrop-filter:blur(6px);max-width:46%;text-align:right;
+  }
+  .stage-hint b{color:var(--accent)}
+
+  /* ---------- widgets ---------- */
+  h2.sec{
+    font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);
+    margin:2px 0 12px;display:flex;align-items:center;gap:8px;
+  }
+  h2.sec::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line-strong),transparent)}
+  h2.sec:not(:first-of-type){margin-top:22px}
+  .card{
+    background:rgba(255,255,255,.035);border:1px solid var(--line);
+    border-radius:13px;padding:13px;margin-bottom:12px;
+  }
+  .card p{font-size:12.5px;color:var(--muted);line-height:1.55}
+  .card p + p{margin-top:8px}
+  .card strong{color:var(--txt);font-weight:600}
+  .formula{
+    font-family:"Cascadia Code",Consolas,ui-monospace,monospace;
+    background:linear-gradient(135deg,rgba(77,212,255,.12),rgba(169,112,255,.12));
+    border:1px solid var(--line-strong);border-radius:9px;padding:10px 12px;
+    text-align:center;font-size:15px;color:#eaf6ff;margin:10px 0 2px;letter-spacing:.5px;
+  }
+  .formula small{display:block;font-size:10.5px;color:var(--muted);margin-top:5px;letter-spacing:.3px}
+
+  .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+  .row label{font-size:12.5px;color:var(--muted);font-weight:500}
+  .row .val{
+    font-family:"Cascadia Code",Consolas,monospace;font-size:12.5px;color:var(--accent);
+    background:rgba(77,212,255,.1);border:1px solid var(--line);padding:2px 8px;border-radius:7px;
+    min-width:80px;text-align:right;
+  }
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;width:100%;height:5px;border-radius:5px;
+    background:linear-gradient(90deg,var(--accent) var(--p,50%),rgba(255,255,255,.11) var(--p,50%));
+    outline:none;margin:4px 0 14px;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:#fff;box-shadow:0 0 0 4px rgba(77,212,255,.28),0 2px 6px rgba(0,0,0,.5);cursor:grab;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:16px;height:16px;border:none;border-radius:50%;background:#fff;
+    box-shadow:0 0 0 4px rgba(77,212,255,.28);cursor:grab;
+  }
+  .btn{
+    border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--txt);
+    padding:8px 12px;border-radius:10px;font-size:12.5px;font-weight:600;cursor:pointer;
+    transition:.16s;font-family:inherit;
+  }
+  .btn:hover{border-color:var(--line-strong);background:rgba(255,255,255,.09);transform:translateY(-1px)}
+  .btn:active{transform:translateY(0)}
+  .btn.primary{
+    background:linear-gradient(135deg,var(--accent),#7fb8ff);color:#04121c;border-color:transparent;
+    box-shadow:0 6px 18px rgba(77,212,255,.3);
+  }
+  .btn.danger{border-color:rgba(255,107,129,.45);color:#ffd7de;background:rgba(255,107,129,.12)}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .btns .btn{flex:1 1 auto}
+  .toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0}
+  .toggle span{font-size:12.5px;color:var(--muted)}
+  .sw{position:relative;width:40px;height:22px;flex:0 0 auto;cursor:pointer}
+  .sw input{opacity:0;width:0;height:0;position:absolute}
+  .sw i{
+    position:absolute;inset:0;border-radius:22px;background:rgba(255,255,255,.1);
+    border:1px solid var(--line);transition:.2s;
+  }
+  .sw i::after{
+    content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;
+    background:#8ea3c6;transition:.2s;
+  }
+  .sw input:checked + i{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent}
+  .sw input:checked + i::after{transform:translateX(18px);background:#fff}
+
+  /* readouts */
+  .metric{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:9px 11px;border-radius:10px;background:rgba(255,255,255,.035);
+    border:1px solid var(--line);margin-bottom:7px;
+  }
+  .metric .k{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:7px}
+  .metric .v{font-family:"Cascadia Code",Consolas,monospace;font-size:14px;font-weight:600}
+  .metric .u{font-size:10.5px;color:var(--muted);margin-left:3px;font-weight:400}
+  .verdict{
+    border-radius:12px;padding:12px 13px;font-size:12.5px;line-height:1.6;
+    border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--muted);
+  }
+  .verdict b{color:var(--txt)}
+  .verdict.good{border-color:rgba(61,220,151,.4);background:rgba(61,220,151,.09)}
+  .verdict.warn{border-color:rgba(255,181,71,.4);background:rgba(255,181,71,.09)}
+  .verdict.bad{border-color:rgba(255,107,129,.45);background:rgba(255,107,129,.1)}
+  .verdict.info{border-color:var(--line-strong);background:linear-gradient(135deg,rgba(77,212,255,.1),rgba(169,112,255,.08))}
+  #gR,#gF{width:100%;height:134px;display:block;border-radius:11px;background:rgba(6,10,20,.55);border:1px solid var(--line)}
+  .glegend{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px;font-size:11.5px;color:var(--muted)}
+  .glegend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+
+  /* info popover */
+  .info{
+    position:fixed;z-index:100;width:296px;max-width:88vw;
+    background:linear-gradient(160deg,#16203a,#0e1526);
+    border:1px solid var(--line-strong);border-radius:14px;box-shadow:0 22px 60px rgba(0,0,0,.7);
+    padding:14px;display:none;animation:pop .16s ease-out;
+  }
+  @keyframes pop{from{opacity:0;transform:translateY(-6px) scale(.97)}to{opacity:1;transform:none}}
+  .info.show{display:block}
+  .info h4{font-size:13px;margin-bottom:7px;display:flex;align-items:center;gap:8px;padding-right:16px}
+  .info p{font-size:12.2px;color:var(--muted);line-height:1.6}
+  .info .fml{
+    font-family:Consolas,monospace;font-size:13px;color:var(--accent);margin:9px 0;
+    background:rgba(77,212,255,.09);border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center;
+  }
+  .info .close{position:absolute;top:8px;right:10px;font-size:16px;color:var(--muted);cursor:pointer;line-height:1}
+  .info .close:hover{color:var(--txt)}
+  .qbtn{
+    width:17px;height:17px;border-radius:50%;flex:0 0 auto;cursor:pointer;
+    border:1px solid var(--line-strong);background:rgba(77,212,255,.14);color:var(--accent);
+    font-size:10.5px;font-weight:700;display:grid;place-items:center;padding:0;font-family:inherit;
+    transition:.15s;
+  }
+  .qbtn:hover{background:var(--accent);color:#04121c;box-shadow:0 0 12px rgba(77,212,255,.6)}
+
+  @media (max-width:1240px){
+    body{overflow:auto}
+    main{grid-template-columns:1fr;grid-template-rows:auto;height:auto}
+    .panel{max-height:none}
+    .stage{height:64vh;min-height:400px}
+  }
+  @media (max-width:700px){
+    header{flex-wrap:wrap}
+    .tabs{width:100%;margin-left:0}
+    .navgroup{width:100%;margin-left:0}
+    .tab{padding:8px 11px;font-size:12px}
+    .legend{max-width:96%}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="logo">◠</div>
+      <div>
+        <h1>Circular Motion &amp; Centripetal Force</h1>
+        <p>Interactive physics lab &middot; F<sub>c</sub> = mv&sup2;/r</p>
+      </div>
+    </div>
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-mode="tether"><span class="num">1</span> Tether</div>
+      <div class="tab" data-mode="flat"><span class="num">2</span> Flat road</div>
+      <div class="tab" data-mode="bank"><span class="num">3</span> Banked road</div>
+      <div class="tab" data-mode="loop"><span class="num">4</span> Loop</div>
+    </div>
+    <div class="navgroup">
+      <a class="navlink" href="index.html">⚛ Newton's Laws</a>
+      <a class="navlink" href="cyclotron.html">🧲 Cyclotron</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============ LEFT: controls ============ -->
+    <aside class="panel" id="controls"></aside>
+
+    <!-- ============ CENTER: stage ============ -->
+    <section class="stage" id="stage">
+      <canvas id="scene"></canvas>
+      <div class="stage-badge"><span class="dot"></span><span id="badge">TETHER · IDEAL CIRCLE</span></div>
+      <div class="legend" id="legend"></div>
+      <div class="stage-hint" id="hint"></div>
+    </section>
+
+    <!-- ============ RIGHT: readouts ============ -->
+    <aside class="panel" id="readouts"></aside>
+  </main>
+</div>
+
+<div class="info" id="info">
+  <span class="close" id="infoClose">&times;</span>
+  <h4 id="infoTitle"></h4>
+  <div class="fml" id="infoFml"></div>
+  <p id="infoBody"></p>
+</div>
+
+<script>
+/* =====================================================================
+   Circular Motion & Centripetal Force simulator
+   Pure HTML / CSS / JS. Units: metres, kilograms, seconds, newtons.
+
+   MODEL
+   -----
+   Every mode is integrated about the centre of its circular path using the
+   exact polar decomposition of the real forces, so slipping and fly-off are
+   emergent rather than scripted:
+
+     state = (r, phi, psi, v)
+       r    distance from the path centre
+       phi  polar angle of the body about that centre
+       psi  angle from the outward radius to the velocity (CCW positive)
+       v    speed
+
+     a_r = v^2 sin^2(psi)/r - F_in/m      (radial, outward positive)
+     a_t = F_t/m                          (tangential)
+     r'   = v cos(psi)
+     v'   = a_t
+     psi' = (-a_r sin psi + a_t cos psi)/v - v sin(psi)/r
+     phi' = v sin(psi)/r
+
+   Choosing F_in = m v^2 / r makes the radial drift vanish identically, so
+   "holding the circle" is an exact fixed point of the integrator.
+   ===================================================================== */
+
+const G0 = 9.81;
+const PI = Math.PI;
+const TAU = PI * 2;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+/* logarithmic sliders: radius and speed each span a decade range */
+const LMIN = 0, LMAX = 1000;
+function toPos(val, lo, hi) { return Math.round(LMIN + Math.log(clamp(val, lo, hi) / lo) / Math.log(hi / lo) * (LMAX - LMIN)); }
+function toVal(pos, lo, hi) { return lo * Math.pow(hi / lo, (pos - LMIN) / (LMAX - LMIN)); }
+const R_LO = 2, R_HI = 60, V_LO = 0.5, V_HI = 60;
+
+/* ---------------------------------------------------------------- state */
+const S = {
+  mode: 'tether',
+  t: 0, playing: true, speed: 1,
+  m: 2, v: 10, r: 18, g: G0, theta: 25, mu: 0.9,
+  cut: false,
+  show: { vectors: true, labels: true, trail: true, target: true, tangent: true, inset: true },
+  b: { r: 18, phi: -PI / 2, psi: PI / 2, v: 12, contact: true, taut: true },
+  trail: [],
+  info: null,
+  work: 0,
+  drag: null,
+  hist: { t: [], ra: [], rt: [], fa: [], fr: [], fav: [] }
+};
+
+/* ------------------------------------------------------------ popovers */
+const INFO = {
+  intro: { t: "Centripetal force is not an extra force", f: "F_net(inward) = m v² / r",
+    b: "“Centripetal” only means <em>pointing to the centre</em>. It is not a new kind of force pushing the body in — it is the <b>name of the net inward force</b> produced by whatever is really there: string tension, friction, the normal force, gravity. This page never applies a force you cannot point at; the inward net force is always measured from what the path can genuinely supply." },
+  fc: { t: "The centripetal formula", f: "F_c = m v² / r = m ω² r",
+    b: "For motion on a circle the inward acceleration is v²/r, so Newton's second law gives F = mv²/r. Two consequences worth remembering: <b>double the speed and you need four times the force</b>, and <b>halve the radius and you double the force</b>. The ω²r form is the same law written for rotation: at a fixed angular speed a tighter circle is harder to hold." },
+  omega: { t: "Angular velocity ω", f: "ω = v / r = 2π / T",
+    b: "The rate at which the direction of travel sweeps around the centre, in rad/s. Constant speed on a fixed circle means constant ω, and one revolution takes T = 2πr/v. Round the vertical loop the speed is <em>not</em> constant, so ω grows while the body climbs and shrinks as it falls." },
+  period: { t: "Period and rpm", f: "T = 2πr / v = 2π / ω",
+    b: "Time for one revolution. Double the speed and the period halves; double the radius and it doubles. A body doing 12 m/s round an 18 m circle laps in T = 2π×18/12 ≈ 9.4 s, i.e. about 6.4 rpm." },
+  acc: { t: "Centripetal acceleration", f: "a_c = v² / r   (points at the centre)",
+    b: "The velocity is always tangent to the circle, but its <em>direction</em> changes as the body moves — that turning is the centripetal acceleration, and it always points inward. Note what it is not: it never points along the direction of travel, so on a level circle it never changes the speed." },
+  noforce: { t: "What happens with no inward force", f: "no F  ⇒  straight line (tangent)",
+    b: "Switch the inward force off with the ✂ button. The dashed grey line shows exactly where the body was heading: a straight tangent. That is the first law, not the second — <b>no force means no turning</b>. Curvature is bought with force, and that force always points at the centre." },
+  work: { t: "Centripetal force does no work", f: "W = F·d cos 90° = 0",
+    b: "The inward force is perpendicular to the instantaneous velocity, so it does zero work on a body whose speed is constant. That is why tension can bend a path around a circle without ever changing the speed, and why the kinetic energy stays put. Round the vertical loop gravity <em>does</em> have a component along the motion, so the speed really does change there." },
+  frame: { t: "Inertial frame vs rotating frame", f: "ma = F   vs   F − m ω²r = 0",
+    b: "In the laboratory frame (what this page shows) the force is real and the inward acceleration is m v²/r. If you <em>ride along</em> with the body, it is stationary and appears to need an outward <b>centrifugal</b> pseudo-force of m ω²r, plus a Coriolis force. “Centrifugal force” is an artefact of the rotating frame — in the inertial frame it simply does not exist." },
+  tension: { t: "Tension in a string", f: "T = m v² / L   (string length L)",
+    b: "An ideal string is massless and inextensible: it pulls along its own length and can never push. So it holds a circular path only while taut. Pay string out and the body settles on a <em>larger</em> circle; shorten the string below the current radius and the body overtakes the string, which goes slack — and then it flies off along the tangent." },
+  friction: { t: "Friction as the inward force", f: "f ≤ μN = μmg   (flat road)",
+    b: "On a flat road only friction can push the car inward, and it cannot exceed μmg. So there is a hard speed limit v_max = √(μrg) at that radius: go faster and the tyres simply cannot supply m v²/r, so the car skids outward along a spiral. Grip is a <b>force budget</b>, not a preference." },
+  bank: { t: "Why roads are banked", f: "N sinθ + f cosθ = m v²/r   (N cosθ − f sinθ = mg)",
+    b: "Tilting the road turns part of the normal force into an inward push, so friction no longer has to do all the work. Solving the two equations gives the friction-free window √(rg(tanθ−μ)) to √(rg(tanθ+μ)), centred on v_ideal = √(rg tanθ). Too fast and the car climbs the banking and skids outward; too slow and it slides down towards the inside." },
+  loop: { t: "The vertical loop", f: "N = m(v²/r − g cosφ)   ≥ 0",
+    b: "At the top gravity supplies part of the inward force, so the track only has to make up m v²/r − mg. Contact needs N ≥ 0, i.e. v² ≥ gr at the top. Energy conservation gives v_top² = v_bottom² − 4gr, so the minimum entrance speed is <b>v ≥ √(5gr)</b>. Slower than that and the car leaves the track at the top and flies as a projectile." },
+  cut: { t: "Cut the inward force", f: "F_in → 0  ⇒  r̈ = v²/r",
+    b: "This is the demo the whole page is built around. With the inward force removed the body keeps its speed and travels straight: the tangent is just the direction it was already moving. Restore the force and it bends back onto the circle. Cutting the string, losing grip or falling off the track all produce that same tangent line — that is Newton's first law." },
+  gforce: { t: "Load factor (g-force)", f: "a / g = v² / (rg)",
+    b: "How many g's the path demands. It is a pure geometry ratio, independent of the mass, and it is what presses you into the seat. Doubling the speed at the same radius takes you from 1 g to 4 g, which is why fast corners are the ones that hurt." },
+  slip: { t: "Sliding instead of holding", f: "F_in < m v² / r  ⇒  r grows",
+    b: "When the available inward force is smaller than m v²/r the body cannot follow the circle: its radius grows and it spirals outward, exactly as in a real skid or a car climbing a banking. Nothing tells the integrator to slip — it is handed only the force the path can really supply, and the outward spiral is the consequence." },
+  energy: { t: "Energy round the loop", f: "½mv² + mgh = constant",
+    b: "The loop is frictionless here, so mechanical energy is conserved: the speed is highest at the bottom, smallest at the top. Gravity does real work along the path, but the normal force never does — it stays perpendicular to the motion at every point." },
+  scale: { t: "On the drawn scale", f: "the view auto-fits the radius",
+    b: "The stage rescales so the chosen radius always fits on screen, and the bar at the bottom of the view shows how many metres one drawn unit represents, so the circle stays honest." },
+  gravity: { t: "Weight, W = mg", f: "W = m · g,   g = 9.81 m/s²",
+    b: "The Earth's pull, always straight down. It is out of the plane of the three horizontal-road modes, so it never turns the body directly — but it sets the size of the budget that <em>can</em> turn it: the normal force is mg, the friction ceiling is μmg, and round the vertical loop gravity itself points inward at the top. Set g = 0 and the flat and banked corners have nothing left to work with." },
+  normal: { t: "Normal force, N", f: "N = mg   (flat)      N = mg / cosθ   (banked)",
+    b: "The contact force the road pushes up on the body, perpendicular to the surface. On a flat road it is just mg. On a banked road it grows to mg/cosθ <em>and tilts inwards</em>, which is the whole point of the banking: part of N, not friction, provides the centripetal force. On a banked road N can never be negative — if the arithmetic wants that, the car has already left the road." }
+};
+
+const pop = document.getElementById('info');
+let popOpen = false, popAnchor = null;
+function placePop() {
+  if (!popOpen || !popAnchor) return;
+  if (!popAnchor.isConnected) { hideInfo(); return; }
+  const r = popAnchor.getBoundingClientRect();
+  const pw = 296, ph = pop.offsetHeight;
+  let left = r.left - pw - 12, top = r.top - 8;
+  if (left < 10) left = r.right + 12;
+  if (left + pw > innerWidth - 10) left = innerWidth - pw - 10;
+  if (top + ph > innerHeight - 10) top = Math.max(10, innerHeight - ph - 10);
+  if (top < 10) top = 10;
+  pop.style.left = left + 'px'; pop.style.top = top + 'px';
+}
+function showInfo(key, anchor) {
+  const d = INFO[key]; if (!d) return;
+  document.getElementById('infoTitle').textContent = d.t;
+  document.getElementById('infoFml').textContent = d.f;
+  document.getElementById('infoBody').innerHTML = d.b;
+  pop.classList.add('show'); popOpen = true; popAnchor = anchor;
+  placePop();
+}
+function hideInfo() { pop.classList.remove('show'); popOpen = false; popAnchor = null; }
+window.addEventListener('scroll', placePop, true);
+window.addEventListener('resize', placePop);
+document.getElementById('infoClose').onclick = hideInfo;
+document.addEventListener('click', e => {
+  if (popOpen && !pop.contains(e.target) && !e.target.closest('.qbtn')) hideInfo();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideInfo(); });
+function infoBtn(key) { return `<button class="qbtn" data-info="${key}" title="What is this?">?</button>`; }
+document.addEventListener('click', e => {
+  const b = e.target.closest('.qbtn');
+  if (b) { e.stopPropagation(); if (popOpen && pop.dataset.k === b.dataset.info) { hideInfo(); } else { pop.dataset.k = b.dataset.info; showInfo(b.dataset.info, b); } }
+});
+
+/* --------------------------------------------------------- control maker */
+function slider(id, label, min, max, step, val, unit) {
+  return `<div class="row"><label>${label}</label><span class="val" id="${id}_v">${val}${unit ? ' ' + unit : ''}</span></div>
+  <input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}">`;
+}
+function logSlider(id, label, lo, hi, val, unit, dp) {
+  return `<div class="row"><label>${label}</label><span class="val" id="${id}_v">${val.toFixed(dp)}${unit ? ' ' + unit : ''}</span></div>
+  <input type="range" id="${id}" min="${LMIN}" max="${LMAX}" step="1" value="${toPos(val, lo, hi)}" data-lo="${lo}" data-hi="${hi}" data-dp="${dp}">`;
+}
+function bindSlider(id, unit, fmt, after) {
+  const el = document.getElementById(id), out = document.getElementById(id + '_v');
+  if (!el || !out) return;
+  const paint = () => {
+    const p = (el.value - el.min) / (el.max - el.min) * 100;
+    el.style.setProperty('--p', p + '%');
+    const v = parseFloat(el.value);
+    out.textContent = (fmt ? fmt(v) : v) + (unit ? ' ' + unit : '');
+    if (after) after(v);
+  };
+  el.addEventListener('input', paint); paint();
+}
+function bindLog(id, unit, after) {
+  const el = document.getElementById(id), out = document.getElementById(id + '_v');
+  if (!el || !out) return;
+  const lo = +el.dataset.lo, hi = +el.dataset.hi, dp = +el.dataset.dp;
+  const paint = () => {
+    const p = (el.value - LMIN) / (LMAX - LMIN) * 100;
+    el.style.setProperty('--p', p + '%');
+    const v = toVal(+el.value, lo, hi);
+    out.textContent = v.toFixed(dp) + (unit ? ' ' + unit : '');
+    if (after) after(v);
+  };
+  el.addEventListener('input', paint); paint();
+}
+function toggle(id, label, checked) {
+  return `<label class="toggle"><span>${label}</span><span class="sw"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''}><i></i></span></label>`;
+}
+
+/* =================================================================== */
+/*  DERIVED QUANTITIES                                                 */
+/* =================================================================== */
+function needForce(r, v) { return S.m * v * v / Math.max(r, 1e-4); }
+function bankAngle() { return S.theta * PI / 180; }
+function idealBank() { return Math.sqrt(Math.max(1e-9, S.r * S.g * Math.tan(bankAngle()))); }
+function bankMaxV() { return Math.sqrt(Math.max(1e-9, S.r * S.g * (Math.tan(bankAngle()) + S.mu))); }
+function bankMinV() { const k = Math.tan(bankAngle()) - S.mu; return k > 0 ? Math.sqrt(S.r * S.g * k) : 0; }
+function gripMaxV() { return Math.sqrt(Math.max(0, S.mu * S.g * S.r)); }
+function loopMinBottom() { return Math.sqrt(5 * S.g * S.r); }
+function loopHeight(phi) { return S.r * (1 + Math.sin(phi)); }
+
+/* =================================================================== */
+/*  SETUP                                                               */
+/* =================================================================== */
+function setSlider(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (el.dataset.lo) { el.value = toPos(val, +el.dataset.lo, +el.dataset.hi); el.dispatchEvent(new Event('input')); }
+  else { el.value = val; el.dispatchEvent(new Event('input')); }
+}
+/* the radius control means something slightly different per mode */
+function applyRadius() {
+  const b = S.b;
+  if (S.mode === 'tether') {
+    /* a string pays out (goes slack) or is reeled in (body pulled in) */
+    if (b.r > S.r) b.r = S.r;
+  } else b.r = S.r;                  /* the road or track itself moved */
+  b.r = Math.max(b.r, 0.15);
+}
+function setupMode(useModeDefaultSpeed) {
+  const b = S.b;
+  b.r = S.r;
+  b.phi = -PI / 2;                   /* start at the bottom of the drawn circle */
+  b.psi = PI / 2;                    /* travelling anticlockwise, purely tangential */
+  b.contact = true;
+  b.taut = true;
+  if (S.mode === 'loop' && useModeDefaultSpeed) {
+    b.v = clamp(loopMinBottom() * 1.25, V_LO, V_HI);
+    setSlider('spd', b.v);
+    S.v = b.v;
+  } else b.v = S.v;
+  S.t = 0; S.trail = []; S.info = null; S.work = 0;
+  S.hist = { t: [], ra: [], rt: [], fa: [], fr: [], fav: [] };
+}
+
+/* =================================================================== */
+/*  PHYSICS                                                             */
+/* =================================================================== */
+/* which real force supplies the inward push at this instant? */
+function forces(r, v, phi, psi) {
+  const m = S.m, g = S.g;
+  const need = m * v * v / r;
+  const o = { Fin: 0, Ft: 0, N: 0, need, avail: null, state: 'free', extra: {}, v, r, canContact: true };
+
+  if (S.cut) { o.state = 'cut'; return o; }
+
+  if (S.mode === 'tether') {
+    o.extra.len = S.r;
+    if (r >= S.r - 1e-6) { o.Fin = need; o.state = 'taut'; }
+    else o.state = 'slack';
+    o.N = o.Fin;                     /* a taut string also pulls inward as "tension" */
+    return o;
+  }
+
+  if (S.mode === 'flat') {
+    const avail = S.mu * m * g;
+    o.avail = avail;
+    o.N = m * g;
+    if (need <= avail + 1e-9) { o.Fin = need; o.state = 'hold'; }
+    else {
+      /* kinetic friction opposes the motion: it only supplies the inward
+         component μmg·cosψ and it slows the body down */
+      o.Fin = S.mu * m * g * Math.cos(psi);
+      o.Ft = -S.mu * m * g * Math.sin(psi);
+      o.state = 'slip';
+    }
+    return o;
+  }
+
+  if (S.mode === 'bank') {
+    const tn = Math.tan(bankAngle());
+    const fmax = m * g * (tn + S.mu);   /* friction down the bank: too fast */
+    const fmin = m * g * (tn - S.mu);   /* friction up the bank:   too slow */
+    o.avail = Math.max(fmax, 1e-9);
+    o.extra.fmax = fmax; o.extra.fmin = fmin;
+    o.N = m * g / Math.cos(clamp(bankAngle(), -1.4, 1.4));
+    if (need >= fmin && need <= fmax) { o.Fin = need; o.state = 'hold'; }
+    else if (need > fmax) { o.Fin = fmax; o.state = 'out'; }
+    else { o.Fin = fmin; o.state = 'in'; }
+    return o;
+  }
+
+  /* ---- vertical loop: gravity resolved about the centre ---- */
+  const sn = Math.sin(phi), cs = Math.cos(phi);
+  const Nreq = m * (v * v / r - g * sn);       /* what the track must supply */
+  o.extra.Nreq = Nreq;
+  o.Fin = m * g * sn;                          /* gravity alone: inward at the top */
+  o.Ft = -m * g * cs;                          /* and it retards the climb */
+  /* contact may only be lost once the track would have to PULL, i.e. by a
+     margin far larger than the integrator's noise at the knife-edge speed */
+  const eps = -1e-4 * Math.max(m * v * v / r, 1);
+  o.canContact = Nreq >= eps;
+  if (o.canContact && S.b.contact) {
+    o.N = Nreq; o.Fin += Nreq; o.state = 'roll';
+  } else {
+    o.N = Math.max(0, Nreq); o.state = 'fly';
+  }
+  return o;
+}
+/* > 1 means the path cannot supply the inward force the body needs */
+function needRatio(f) {
+  if (S.mode === 'tether') return f.state === 'taut' ? 0 : 1;
+  if (S.mode === 'loop') return f.state === 'roll' ? 0 : 1;
+  if (!f.avail || f.avail <= 1e-9) return 1;
+  return f.need / f.avail;
+}
+
+/* time derivatives of (r, psi, v) in polar form, from the real forces */
+function derivatives(r, psi, v, phi) {
+  const m = S.m;
+  const f = forces(r, v, phi, psi);
+  const aR = -f.Fin / m;          /* radial, outward positive  (a_r = r̈ − rθ̇²) */
+  const aT = f.Ft / m;
+  const sp = Math.sin(psi);
+  return {
+    f,
+    dr: v * Math.cos(psi),
+    dv: aT,
+    dpsi: (-aR * sp + aT * Math.cos(psi)) / v - v * sp / r,
+    dphi: v * sp / r
+  };
+}
+
+function stepAll(dt) {
+  const b = S.b;
+  let r = Math.max(b.r, 0.15);
+  let psi = b.psi;
+  let v = Math.max(b.v, 1e-4);
+  const phi = b.phi;
+  let tautSnap = false;
+
+  /* an inextensible string that has just gone taut removes the radial
+     velocity instantly — the impulsive jerk that snaps the body back onto
+     the circle and takes the energy out of the radial motion */
+  if (S.mode === 'tether' && !S.cut) {
+    const tautNow = r >= S.r - 1e-9;
+    if (tautNow && b.taut === false) {
+      v = Math.max(Math.abs(Math.sin(psi)) * v, 1e-6);
+      psi = PI / 2;
+      tautSnap = true;
+    }
+    b.taut = tautNow;
+  }
+
+  /* midpoint (RK2) integration. On a circle the model is an exact fixed
+     point, so holding is drift-free, and RK2 keeps a force-free flight
+     straight to about 1e-6 rad instead of 1e-3. */
+  const k1 = derivatives(r, psi, v, phi);
+  const k2 = derivatives(
+    Math.max(r + 0.5 * dt * k1.dr, 0.12),
+    psi + 0.5 * dt * k1.dpsi,
+    Math.max(v + 0.5 * dt * k1.dv, 1e-4),
+    phi + 0.5 * dt * k1.dphi);
+
+  b.r = Math.max(0.12, r + dt * k2.dr);
+  b.psi = psi + dt * k2.dpsi;
+  b.v = Math.max(0, v + dt * k2.dv);
+  b.phi = phi + dt * k2.dphi;
+  if (tautSnap) { b.r = S.r; b.psi = PI / 2; }
+
+  /* work done by the inward component of the net force: zero on any circle,
+     negative while the body is being pushed outward faster than it curves */
+  S.work += k2.f.Fin * (-Math.cos(psi)) * v * dt;
+
+  /* ---- constraints that the physical path imposes ---- */
+  if (S.mode === 'loop') {
+    if (b.contact && !S.cut) {
+      b.r = S.r;                      /* the normal force fixes the radius */
+      b.psi = PI / 2;                 /* purely tangential, anticlockwise */
+      if (!k2.f.canContact) b.contact = false;
+    } else {
+      b.contact = false;
+      /* reattach where the body crosses the track again, moving outwards:
+         the wall pushes in, which removes the outward part of its velocity */
+      if (b.r <= S.r && Math.cos(b.psi) > 0 && Math.sin(b.psi) > 0) {
+        b.r = S.r; b.psi = PI / 2; b.contact = true;
+        b.v = Math.max(b.v, 0.35 * Math.sqrt(S.g * S.r));
+      }
+    }
+  } else b.contact = true;
+
+  S.info = k2.f;
+  S.t += dt;
+
+  if (S.show.trail) {
+    S.trail.push({ x: b.r * Math.cos(b.phi), y: b.r * Math.sin(b.phi), k: needRatio(k2.f) });
+    if (S.trail.length > 620) S.trail.shift();
+  }
+}
+/* =================================================================== */
+/*  PANEL CONTENT                                                       */
+/* =================================================================== */
+const elControls = document.getElementById('controls');
+const elRead = document.getElementById('readouts');
+const elBadge = document.getElementById('badge');
+const elHint = document.getElementById('hint');
+const elLegend = document.getElementById('legend');
+const elStage = document.getElementById('stage');
+
+const SETUP = {
+  tether: {
+    badge: 'TETHER · IDEAL CIRCLE',
+    title: 'Mass on a string',
+    info: 'tension',
+    body: `A ball whirls on a light, inextensible string. The string is the <strong>only</strong> thing that can pull it inward, so the tension <em>is</em> the centripetal force. Nothing else is needed — and nothing else can help.`,
+    formula: 'T = m v² / r',
+    note: `The ball never changes speed: tension is always perpendicular to the motion, so it does no work. Try <strong>Pay out string</strong> — the string goes slack, the centripetal force vanishes, and the ball leaves along the tangent.`
+  },
+  flat: {
+    badge: 'FLAT ROAD · FRICTION ONLY',
+    title: 'Car on a flat circular road',
+    info: 'friction',
+    body: `On a level road the surface can only push <strong>up</strong>, so the whole inward force has to come from <strong>friction</strong> in the tyres — and friction has a ceiling, μmg.`,
+    formula: 'm v² / r ≤ μ m g',
+    note: `That inequality is the speed limit for the corner: <strong>v ≤ √(μrg)</strong>. Break it and the car does not turn tightly — it slides outwards, in a spiral, exactly as the tyre physics demands.`
+  },
+  bank: {
+    badge: 'BANKED ROAD · NORMAL DOES THE WORK',
+    title: 'Banked circular road',
+    info: 'bank',
+    body: `Tilting the road inwards means part of the <strong>normal force</strong> now has an inward component, so friction only has to make up the difference. At the design speed it doesn't have to make up anything at all.`,
+    formula: 'v_ideal = √(r g tanθ)',
+    note: `Too fast and the car climbs the banking and skids outwards; too slow and it slides down towards the inside. The corner works over a whole <strong>range</strong> of speeds, not just one.`
+  },
+  loop: {
+    badge: 'VERTICAL LOOP · FRICTIONLESS TRACK',
+    title: 'Vertical loop',
+    info: 'loop',
+    body: `The body starts at the bottom and is carried up the inside of a vertical circle by <strong>gravity doing work</strong> — so unlike the other modes, the speed genuinely <em>changes</em> round the loop.`,
+    formula: 'v_min(bottom) = √(5 g r)',
+    note: `At the top the track must still push <em>inwards</em>, and a surface can push but never pull. The car needs v² ≥ gr up there, which with energy conservation means v ≥ √(5gr) at the bottom.`
+  }
+};
+
+const EXTRA = {
+  tether: '',
+  flat: `${slider('mu', 'Tyre friction μ', 0, 1.2, 0.02, S.mu, '')}`,
+  bank: `${slider('theta', 'Bank angle θ', 0, 45, 1, S.theta, '°')}
+    ${slider('mu', 'Tyre friction μ', 0, 0.6, 0.02, S.mu, '')}`,
+  loop: ''
+};
+
+const PRESETS = {
+  tether: [['twice', 'Double the speed'], ['pay', 'Pay out string'], ['reel', 'Reel in the string'], ['zerog', 'Zero gravity']],
+  flat: [['limit', 'At the grip limit'], ['skid', 'Too fast → skid'], ['ice', 'μ = 0, frictionless'], ['zerog', 'Zero gravity']],
+  bank: [['ideal', 'Ideal speed √(rgtanθ)'], ['fast', 'Too fast → up the bank'], ['slow', 'Too slow → slides in'], ['level', 'Level road (θ = 0)']],
+  loop: [['min', 'Minimum √5gr'], ['safe', 'Comfortable 1.25×'], ['slow', 'Too slow → flies off'], ['zerog', 'Zero gravity']]
+};
+
+const NOTICES = {
+  tether: `Press ✂ <em>Cut the inward force</em> at any moment and the ball keeps its speed and travels in a straight line — the tangent. There is no "centripetal force" that exists on its own; it is only ever tension, gravity or a contact force, and when none of them points inward, the path is straight.`,
+  flat: `The inward force is capped by friction at μmg, so the corner has a maximum speed √(μrg). Notice the required force grows as <em>v²</em>: doubling the speed needs four times the grip, which is why corner speeds fall as the radius tightens.`,
+  bank: `Banking buys inward force from the normal force instead of from friction. The friction-free window runs from √(rg(tanθ−μ)) to √(rg(tanθ+μ)), so a real corner tolerates a <em>range</em> of speeds. Sweep the speed slider slowly through it and watch the grip margin open and close.`,
+  loop: `The normal force can only push, so near the top the car must supply the rest of the inward force itself: that is why the top of the loop needs v² ≥ gr, and why the bottom entrance speed must be at least √(5gr). The speed is lowest at the top and the load factor is highest there.`
+};
+
+/* the sliders are rebuilt with whatever the state currently holds, so a panel
+   rebuild (mode switch, reset) never throws the user's settings away */
+function universalBlock() {
+  return `
+    <h2 class="sec">Shared controls</h2>
+    ${logSlider('mMass', 'Mass m', 0.5, 2000, S.m, 'kg', 2)}
+    ${logSlider('spd', 'Speed v', V_LO, V_HI, S.v, 'm/s', 2)}
+    ${logSlider('rad', 'Radius r / string length L', R_LO, R_HI, S.r, 'm', 2)}
+    ${slider('grav', 'Gravity g', 0, 25, 0.01, S.g, 'm/s²')}`;
+}
+const transportBlock = `
+  <div class="card">
+    <h2 class="sec" style="margin-bottom:6px">Transport</h2>
+    <div class="btns">
+      <button class="btn ${S.playing ? 'primary' : ''}" id="btnPlay">${S.playing ? 'Pause' : 'Play'}</button>
+      <button class="btn" id="btnReset">Reset</button>
+    </div>
+    <div class="btns">
+      <button class="btn danger ${S.cut ? 'on' : ''}" id="btnCut">${S.cut ? 'Restore the inward force' : 'Cut the inward force'}</button>
+    </div>
+    ${slider('tscale', 'Time scale', 0.1, 3, 0.1, S.speed, 'x')}
+    <div class="card" style="margin:6px 0 0;background:rgba(255,107,129,.07);border-color:rgba(255,107,129,.3)">
+      <p id="cutNote">${S.cut
+        ? '<strong>Inward force removed.</strong> The path can no longer bend the body, so it keeps its speed and leaves along the tangent — straight line, first law.'
+        : '<strong>Inward force on.</strong> Hit the scissors and every mode turns into Newton\'s first law: straight line, tangent to the circle.'}</p>
+    </div>
+  </div>`;
+const switchBlock = `
+  <div class="card">
+    <h2 class="sec" style="margin-bottom:6px">Stage options</h2>
+    ${toggle('sw_vec', 'Force &amp; velocity vectors', S.show.vectors)}
+    ${toggle('sw_lab', 'Labels on stage', S.show.labels)}
+    ${toggle('sw_trail', 'Motion trail', S.show.trail)}
+    ${toggle('sw_targ', 'Target circle', S.show.target)}
+    ${toggle('sw_tan', 'No-force tangent line', S.show.tangent)}
+    ${toggle('sw_ins', 'Side-view inset', S.show.inset)}
+  </div>`;
+
+function buildPanels() {
+  const d = SETUP[S.mode];
+  elControls.innerHTML = `
+    <h2 class="sec">${d.title} ${infoBtn(d.info)}</h2>
+    <div class="card">
+      <p>${d.body}</p>
+      <div class="formula">${d.formula}</div>
+      <p>${d.note}</p>
+    </div>
+    ${EXTRA[S.mode]}
+    <div class="btns" style="margin-bottom:14px">
+      ${PRESETS[S.mode].map(p => `<button class="btn" data-preset="${p[0]}">${p[1]}</button>`).join('')}
+    </div>
+    ${universalBlock()}
+    ${transportBlock}
+    ${switchBlock}
+    <h2 class="sec">Key idea</h2>
+    <div class="card"><p>${NOTICES[S.mode]}</p></div>`;
+
+  elRead.innerHTML = `
+    <h2 class="sec">Live measurements ${infoBtn('fc')}</h2>
+    <div id="mMain"></div>
+    <h2 class="sec">This mode ${infoBtn(S.mode)}</h2>
+    <div id="mx"></div>
+    <h2 class="sec">Radius vs target ${infoBtn('slip')}</h2>
+    <canvas id="gR"></canvas>
+    <div class="glegend">
+      <span><i style="background:#4dd4ff"></i>actual r</span>
+      <span><i style="background:#3ddc97"></i>target r</span>
+    </div>
+    <h2 class="sec">Force budget ${infoBtn('work')}</h2>
+    <canvas id="gF"></canvas>
+    <div class="glegend">
+      <span><i style="background:#ff5cc8"></i>applied inward</span>
+      <span><i style="background:#4dd4ff"></i>required mv²/r</span>
+      <span><i style="background:#ffb547"></i>maximum available</span>
+    </div>
+    <h2 class="sec">Verdict</h2>
+    <div class="verdict info" id="verdict"></div>
+    <h2 class="sec">Frames of reference ${infoBtn('frame')}</h2>
+    <div class="card"><p>Everything on this page is the <strong>laboratory frame</strong>: a real force bends the path and the body accelerates at v²/r towards the centre. Sit in the rotating frame and you must add an outward <strong>centrifugal</strong> pseudo-force mω²r to keep the body stationary — and that is a description, not a new force of nature.</p></div>`;
+
+  elBadge.textContent = d.badge;
+  elLegend.innerHTML = legendFor(S.mode);
+  elHint.innerHTML = hintFor(S.mode);
+  renderMetrics('mMain', MROWS);
+  renderMetrics('mx', MODE_ROWS[S.mode]);
+  for (const k in CELLS) delete CELLS[k];
+  wire();
+}
+
+function legendFor(mode) {
+  const chip = (color, label, key) =>
+    `<div class="chip"><span class="swatch" style="background:${color}"></span>${label}${key ? infoBtn(key) : ''}</div>`;
+  let h = chip('#ff5cc8', 'Net inward force', 'fc') + chip('#3ddc97', 'Velocity', 'acc') +
+          chip('#a970ff', 'Weight mg', 'gravity');
+  if (mode === 'tether') h = chip('#4dd4ff', 'Tension = the inward force', 'tension') + chip('#ff5cc8', 'Same force, shown as F_net', 'fc') + h.slice(h.indexOf('chip(\'#3ddc97\''));
+  if (mode === 'flat' || mode === 'bank') h += chip('#4dd4ff', 'Normal N', 'normal') + chip('#ffb547', 'Friction f', 'friction');
+  if (mode === 'loop') h += chip('#4dd4ff', 'Normal N', 'loop') + chip('#e6edf8', 'No force → tangent', 'noforce');
+  return h;
+}
+function hintFor(mode) {
+  if (mode === 'tether') return 'Drag the ball sideways to throw it faster · <b>scroll</b> to pay the string in or out';
+  if (mode === 'flat') return 'Only friction can turn the car. Watch the <b>required</b> force pass the <b>available</b> one.';
+  if (mode === 'bank') return 'Sweep the speed slowly: the car holds, climbs the bank, or slides inwards.';
+  return 'Height inset on the right · the normal force must stay <b>positive</b> to keep contact.';
+}
+
+/* ------------------------------------------------------------- wiring */
+function wire() {
+  const q = id => document.getElementById(id);
+
+  bindLog('mMass', 'kg', v => { S.m = v; });
+  bindLog('spd', 'm/s', v => { S.v = v; S.b.v = v; });
+  bindLog('rad', 'm', v => { S.r = v; applyRadius(); });
+  bindSlider('grav', 'm/s²', v => v.toFixed(2), v => S.g = v);
+  bindSlider('tscale', 'x', v => v.toFixed(1), v => S.speed = v);
+
+  if (S.mode === 'flat' || S.mode === 'bank') bindSlider('mu', '', v => v.toFixed(2), v => S.mu = v);
+  if (S.mode === 'bank') bindSlider('theta', '°', v => v.toFixed(0), v => S.theta = v);
+
+  const bind = (id, key) => { const e = q(id); if (e) e.addEventListener('change', () => S.show[key] = e.checked); };
+  bind('sw_vec', 'vectors'); bind('sw_lab', 'labels'); bind('sw_trail', 'trail');
+  bind('sw_targ', 'target'); bind('sw_tan', 'tangent'); bind('sw_ins', 'inset');
+
+  q('btnPlay').onclick = () => {
+    S.playing = !S.playing;
+    q('btnPlay').textContent = S.playing ? 'Pause' : 'Play';
+    q('btnPlay').classList.toggle('primary', S.playing);
+  };
+  q('btnReset').onclick = () => restart();
+  q('btnCut').onclick = () => setCut(!S.cut);
+
+  document.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => preset(b.dataset.preset));
+}
+function setCut(on) {
+  S.cut = on;
+  const b = document.getElementById('btnCut'), n = document.getElementById('cutNote');
+  if (b) { b.textContent = on ? 'Restore the inward force' : 'Cut the inward force'; b.classList.toggle('on', on); }
+  if (n) n.innerHTML = on
+    ? '<strong>Inward force removed.</strong> The path can no longer bend the body, so it keeps its speed and leaves along the tangent — straight line, first law.'
+    : '<strong>Inward force on.</strong> Hit the scissors and every mode turns into Newton\'s first law: straight line, tangent to the circle.';
+}
+function restart() {
+  S.cut = false;
+  buildPanels();
+  setupMode(false);
+}
+/* per-mode starting values for the controls that only make sense in one mode */
+const MODE_DEFAULTS = { tether: {}, flat: { mu: 0.9 }, bank: { mu: 0.2, theta: 25 }, loop: {} };
+function enterMode(mode) {
+  S.mode = mode;
+  S.cut = false;
+  S.playing = true;
+  Object.assign(S, MODE_DEFAULTS[mode] || {});
+  buildPanels();
+  setupMode(true);
+}
+
+function preset(name) {
+  const set = (id, val) => setSlider(id, clamp(val, +document.getElementById(id).min, +document.getElementById(id).max));
+  if (S.mode === 'tether') {
+    if (name === 'twice') set('spd', S.b.v * 2);
+    if (name === 'pay') set('rad', S.r * 1.7);
+    if (name === 'reel') set('rad', S.r * 0.55);
+    if (name === 'zerog') set('grav', 0);
+  }
+  if (S.mode === 'flat') {
+    if (name === 'limit') set('spd', gripMaxV() * 0.92);
+    if (name === 'skid') { set('mu', 0.6); set('spd', gripMaxV() * 1.5); }
+    if (name === 'ice') { set('mu', 0); set('spd', S.b.v); }
+    if (name === 'zerog') set('grav', 0);
+  }
+  if (S.mode === 'bank') {
+    if (name === 'ideal') set('spd', idealBank());
+    if (name === 'fast') set('spd', bankMaxV() * 1.18);
+    if (name === 'slow') set('spd', Math.max(bankMinV() * 0.7, idealBank() * 0.5));
+    if (name === 'level') set('theta', 0);   /* the speed stays: now it is a flat corner */
+  }
+  if (S.mode === 'loop') {
+    if (name === 'min') set('spd', loopMinBottom());
+    if (name === 'safe') set('spd', loopMinBottom() * 1.25);
+    if (name === 'slow') set('spd', loopMinBottom() * 0.82);
+    if (name === 'zerog') set('grav', 0);
+    restart();
+  }
+}
+/* =================================================================== */
+/*  CANVAS RENDERING                                                    */
+/* =================================================================== */
+const cv = document.getElementById('scene');
+const ctx = cv.getContext('2d');
+let W = 1000, H = 560, CX = 500, CY = 290, SC = 20;
+
+function resize() {
+  const r = cv.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = Math.max(320, r.width); H = Math.max(300, r.height);
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+const WX = x => CX + x * SC;
+const WY = y => CY - y * SC;
+function layout() {
+  CX = W * 0.5; CY = H * 0.52;
+  SC = clamp(Math.min(W * 0.40, H * 0.40) / Math.max(S.r, 6), 3, 150);
+}
+
+/* ---- small drawing helpers ---- */
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function arrow(x1, y1, x2, y2, color, width, dashed) {
+  const a = Math.atan2(y2 - y1, x2 - x1);
+  const len = Math.hypot(x2 - x1, y2 - y1);
+  if (len < 1.5) return;
+  ctx.save();
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width; ctx.lineCap = 'round';
+  if (dashed) ctx.setLineDash([7, 6]);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.setLineDash([]);
+  const hs = clamp(width * 3.2, 7, 13);
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - hs * Math.cos(a - 0.4), y2 - hs * Math.sin(a - 0.4));
+  ctx.lineTo(x2 - hs * Math.cos(a + 0.4), y2 - hs * Math.sin(a + 0.4));
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function tag(x, y, text, color) {
+  ctx.save();
+  ctx.font = '600 11.5px "Segoe UI",sans-serif';
+  const w = ctx.measureText(text).width + 12;
+  const px = clamp(x, w / 2 + 4, W - w / 2 - 4), py = clamp(y, 12, H - 12);
+  ctx.fillStyle = 'rgba(7,11,20,.85)';
+  ctx.strokeStyle = color; ctx.lineWidth = 1;
+  roundRect(px - w / 2, py - 10, w, 19, 6); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, px, py + 0.5);
+  ctx.restore();
+}
+function glowDot(x, y, r, color, label, sub) {
+  ctx.save();
+  ctx.shadowColor = color; ctx.shadowBlur = 20;
+  const g = ctx.createRadialGradient(x - r * .3, y - r * .3, 1, x, y, r);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(.35, color); g.addColorStop(1, color + 'aa');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
+  ctx.restore();
+  if (S.show.labels) {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#04121c'; ctx.font = '800 12px "Segoe UI",sans-serif';
+    ctx.fillText(label, x, y + 0.5);
+    ctx.restore();
+  }
+}
+function car(x, y, ang, color, label) {
+  const w = 26, h = 14;
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(-ang);
+  ctx.shadowColor = color; ctx.shadowBlur = 16;
+  const g = ctx.createLinearGradient(0, -h / 2, 0, h / 2);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(.45, color); g.addColorStop(1, color + '99');
+  ctx.fillStyle = g; roundRect(-w / 2, -h / 2, w, h, 6); ctx.fill();
+  ctx.restore();
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(-ang);
+  ctx.strokeStyle = '#eaf6ffbb'; ctx.lineWidth = 1.4;
+  roundRect(-w / 2, -h / 2, w, h, 6); ctx.stroke();
+  ctx.fillStyle = '#04121c99';
+  ctx.fillRect(2, -h / 2 + 2.5, 5, h - 5);
+  if (S.show.labels && label) {
+    ctx.rotate(ang);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#eaf6ff';
+    ctx.font = '700 11px "Segoe UI",sans-serif';
+    ctx.fillText(label, 0, -h / 2 - 8);
+  }
+  ctx.restore();
+}
+function wcircle(rr, color, width, dashed) {
+  ctx.save();
+  ctx.strokeStyle = color; ctx.lineWidth = width;
+  if (dashed) ctx.setLineDash([6, 7]);
+  ctx.beginPath(); ctx.arc(WX(0), WY(0), rr * SC, 0, TAU); ctx.stroke();
+  ctx.restore();
+}
+/* road / track band drawn as a flat annulus, half width in metres */
+function band(halfM, fill, edge) {
+  const ro = (S.r + halfM) * SC, ri = Math.max(1, (S.r - halfM) * SC);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(WX(0), WY(0), ro, 0, TAU);
+  ctx.arc(WX(0), WY(0), ri, 0, TAU, true);
+  ctx.closePath();
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.restore();
+  if (edge) { wcircle(S.r + halfM, edge, 1.4); wcircle(Math.max(0.2, S.r - halfM), edge, 1.4); }
+}
+
+/* ---- background ---- */
+function drawBackdrop() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(120,150,210,.05)'; ctx.lineWidth = 1;
+  const step = clamp(SC, 14, 70);
+  for (let x = CX % step; x < W; x += step) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = CY % step; y < H; y += step) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  ctx.restore();
+  /* centre cross */
+  ctx.save();
+  ctx.strokeStyle = 'rgba(130,170,255,.30)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(CX - 12, CY); ctx.lineTo(CX + 12, CY);
+  ctx.moveTo(CX, CY - 12); ctx.lineTo(CX, CY + 12);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* ---- the road or track the body is following ---- */
+function drawPath() {
+  if (S.mode === 'tether') {
+    if (S.show.target) wcircle(S.r, 'rgba(61,220,151,.42)', 1.6, true);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(61,220,151,.75)'; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(WX(0), WY(0), 7, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(WX(0), WY(0), 2.6, 0, TAU);
+    ctx.fillStyle = 'rgba(61,220,151,.9)'; ctx.fill();
+    ctx.restore();
+    if (S.show.labels) tag(CX, CY - 20, 'pivot', '#3ddc97');
+    return;
+  }
+  if (S.mode === 'flat') {
+    band(1.4, 'rgba(150,165,195,.22)', 'rgba(200,215,240,.45)');
+    wcircle(S.r, 'rgba(120,150,210,.20)', 1, true);
+    return;
+  }
+  if (S.mode === 'bank') {
+    band(1.6, 'rgba(150,165,195,.20)', 'rgba(200,215,240,.40)');
+    /* the raised inner edge, suggested by a heavier inner arc */
+    ctx.save();
+    ctx.strokeStyle = 'rgba(77,212,255,.45)'; ctx.lineWidth = clamp(6 * SC / 20, 3, 9);
+    ctx.beginPath(); ctx.arc(WX(0), WY(0), Math.max(2, (S.r - 1.6) * SC), 0, TAU); ctx.stroke();
+    ctx.setLineDash([2, 9]);
+    ctx.strokeStyle = 'rgba(200,215,240,.30)'; ctx.lineWidth = 1.2;
+    for (let i = 0; i < 48; i++) {
+      const a = i / 48 * TAU;
+      const r1 = (S.r - 1.6) * SC, r2 = (S.r + 1.6) * SC;
+      ctx.beginPath();
+      ctx.moveTo(CX + r1 * Math.cos(a), CY - r1 * Math.sin(a));
+      ctx.lineTo(CX + r2 * Math.cos(a), CY - r2 * Math.sin(a));
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+    return;
+  }
+  /* loop: a broad track seen from above */
+  band(1.8, 'rgba(150,165,195,.20)', 'rgba(200,215,240,.42)');
+  ctx.save();
+  ctx.fillStyle = S.b.contact ? 'rgba(61,220,151,.8)' : 'rgba(255,107,129,.85)';
+  ctx.beginPath(); ctx.arc(WX(0), WY(S.r), 4, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(WX(0), WY(-S.r), 4, 0, TAU); ctx.fill();
+  ctx.restore();
+  if (S.show.labels) {
+    tag(WX(0), WY(S.r) + 18, 'bottom', '#3ddc97');
+    tag(WX(0), WY(-S.r) - 18, 'top', '#ff6b81');
+  }
+}
+
+function drawTrail() {
+  if (!S.show.trail || S.trail.length < 2) return;
+  ctx.save();
+  ctx.lineWidth = 2.2; ctx.lineCap = 'round';
+  let prevK = S.trail[0].k;
+  for (let i = 1; i < S.trail.length; i++) {
+    const a = S.trail[i - 1], b = S.trail[i];
+    const col = prevK <= 0.35 ? 'rgba(61,220,151,' : prevK <= 0.9 ? 'rgba(255,181,71,' : 'rgba(255,107,129,';
+    ctx.strokeStyle = col + clamp(0.75 * (1 - (i - S.trail.length) / S.trail.length * 0.55), .12, .75).toFixed(2) + ')';
+    ctx.beginPath(); ctx.moveTo(WX(a.x), WY(a.y)); ctx.lineTo(WX(b.x), WY(b.y)); ctx.stroke();
+    prevK = b.k;
+  }
+  ctx.restore();
+}
+
+function drawTangent(x, y, ang) {
+  if (!S.show.tangent) return;
+  const L = clamp(S.r * SC * 0.55, 70, 190);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(230,237,248,.5)'; ctx.lineWidth = 1.6; ctx.setLineDash([9, 7]);
+  ctx.beginPath(); ctx.moveTo(x - Math.cos(ang) * 16, y + Math.sin(ang) * 16);
+  ctx.lineTo(x + Math.cos(ang) * L, y - Math.sin(ang) * L); ctx.stroke();
+  ctx.restore();
+  if (S.show.labels) tag(x + Math.cos(ang) * (L + 26), y - Math.sin(ang) * (L + 26), 'no force → straight line', '#c9d4ea');
+}
+
+/* ---- force + velocity vectors ----
+   Screen-space unit vectors derived from the polar angle phi:
+     inward     world (−cosφ, −sinφ) → screen (−cosφ, +sinφ)
+     tangential world (−sinφ,  cosφ) → screen (−sinφ, −cosφ)   (CCW)        */
+function drawVectors(bx, by, vAng, phi) {
+  if (!S.show.vectors) return;
+  const f = S.info || forces(S.b.r, S.b.v, S.b.phi, S.b.psi);
+  const m = S.m, g = S.g;
+  const r = Math.max(S.b.r, .12);
+  const need = m * S.b.v * S.b.v / r;
+
+  const cph = Math.cos(phi), sph = Math.sin(phi);
+  const IX = -cph, IY = sph;      // inward
+  const TX = -sph, TY = -cph;     // tangential, CCW
+
+  const fref = Math.max(need, Math.abs(f.Fin), Math.abs(f.N), m * g, f.avail || 0, 1e-6);
+  const FS = clamp(44 / fref, 0.10, 60);
+  const VS = clamp(52 / Math.max(S.b.v, 0.4), 0.6, 60);
+
+  if (S.mode === 'tether' && f.Fin > 0.05) {
+    arrow(bx, by, bx + IX * f.Fin * FS, by + IY * f.Fin * FS, '#4dd4ff', 2.6);
+    if (S.show.labels) tag(bx + IX * f.Fin * FS * .6 - 20, by + IY * f.Fin * FS * .6, 'T = ' + f.Fin.toFixed(1) + ' N', '#4dd4ff');
+  }
+  if (S.mode === 'flat') {
+    const fl = clamp(Math.abs(f.Fin) * FS, 0, 90);
+    arrow(bx - TX * 10, by - TY * 10, bx - TX * 10 + IX * fl, by - TY * 10 + IY * fl, '#ffb547', 2.6);
+    if (S.show.labels) tag(bx - TX * 10 + IX * fl * .6 - 24, by - TY * 10 + IY * fl * .6, 'f = ' + Math.abs(f.Fin).toFixed(1) + ' N', '#ffb547');
+    const nl = clamp(m * g * FS * .6, 14, 70);
+    arrow(bx - TX * 24, by - TY * 24, bx - TX * 24, by - TY * 24 - nl, '#4dd4ff', 1.8);
+    if (S.show.labels) tag(bx - TX * 24 + 30, by - TY * 24 - nl * .6, 'N = ' + (m * g).toFixed(1) + ' N', '#4dd4ff');
+  }
+  if (S.mode === 'bank') {
+    const th = bankAngle();
+    /* the surface normal: vertical, tilted θ inwards */
+    const NX = -Math.sin(th) * cph, NY = -Math.cos(th);
+    const nl = clamp(f.N * FS, 14, 90);
+    arrow(bx + TX * 6, by + TY * 6, bx + TX * 6 + NX * nl, by + TY * 6 + NY * nl, '#4dd4ff', 2.6);
+    if (S.show.labels) tag(bx + TX * 6 + NX * nl * .55 + 6, by + TY * 6 + NY * nl * .55, 'N = ' + f.N.toFixed(1) + ' N', '#4dd4ff');
+    if (Math.abs(f.Ft) > 0.05) {
+      const sgn = Math.sign(f.Ft) || 1, fx = -TX * sgn * 40, fy = -TY * sgn * 40;
+      arrow(bx + TX * 16, by + TY * 16, bx + TX * 16 + fx, by + TY * 16 + fy, '#ffb547', 2);
+    }
+  }
+  if (S.mode === 'loop' && f.N > 0.05) {
+    const nl = clamp(f.N * FS, 14, 90);
+    arrow(bx, by, bx + IX * nl, by + IY * nl, '#4dd4ff', 2.8);
+    if (S.show.labels) tag(bx + IX * nl * .6 - 22, by + IY * nl * .6, 'N = ' + f.N.toFixed(1) + ' N', '#4dd4ff');
+  }
+
+  /* weight */
+  if (m * g > 0.05) {
+    const wl = clamp(m * g * FS, 16, 96);
+    arrow(bx + TX * 24, by + TY * 24, bx + TX * 24, by + TY * 24 + wl, '#a970ff', 2.2);
+    if (S.show.labels) tag(bx + TX * 24 + 26, by + TY * 24 + wl * .6, 'mg = ' + (m * g).toFixed(1) + ' N', '#a970ff');
+  }
+
+  /* the net inward force — this is exactly what "centripetal" names */
+  const nl2 = clamp(f.Fin * FS, 12, 130);
+  arrow(bx, by, bx + IX * nl2, by + IY * nl2, '#ff5cc8', 3, true);
+  if (S.show.labels) tag(bx + IX * nl2 - 12, by + IY * nl2, 'F_net = ' + f.Fin.toFixed(1) + ' N', '#ff5cc8');
+
+  /* velocity */
+  const vl = clamp(S.b.v * VS, 24, 120);
+  arrow(bx, by, bx + Math.cos(vAng) * vl, by - Math.sin(vAng) * vl, '#3ddc97', 3);
+  if (S.show.labels) tag(bx + Math.cos(vAng) * (vl + 24), by - Math.sin(vAng) * (vl + 24), 'v = ' + S.b.v.toFixed(1) + ' m/s', '#3ddc97');
+}
+
+function drawBody() {
+  const b = S.b;
+  const bx = WX(b.r * Math.cos(b.phi)), by = WY(b.r * Math.sin(b.phi));
+  const vAng = b.phi + b.psi;
+  drawTangent(bx, by, vAng);
+  if (S.mode === 'tether') {
+    /* the string */
+    ctx.save();
+    const taut = S.info ? S.info.state === 'taut' : true;
+    ctx.strokeStyle = taut ? 'rgba(230,237,248,.85)' : 'rgba(230,237,248,.35)';
+    ctx.lineWidth = taut ? 2 : 1.4;
+    ctx.setLineDash(taut ? [] : [5, 5]);
+    ctx.beginPath(); ctx.moveTo(CX, CY); ctx.lineTo(bx, by); ctx.stroke();
+    ctx.restore();
+    drawVectors(bx, by, vAng, b.phi);
+    glowDot(bx, by, 13, '#ff5cc8', S.m.toFixed(1), '');
+  } else {
+    drawVectors(bx, by, vAng, b.phi);
+    const col = S.cut ? '#ff6b81' : (S.info && (S.info.state === 'slip' || S.info.state === 'out' || S.info.state === 'fly') ? '#ffb547' : '#4dd4ff');
+    car(bx, by, vAng, col, S.m >= 100 ? Math.round(S.m) + ' kg' : '');
+  }
+  if (S.drag && S.show.labels) tag(bx, by - 34, 'release to throw  ·  v = ' + S.b.v.toFixed(1) + ' m/s', '#ffb547');
+}
+
+/* ---- insets ---- */
+function insetPanel(x, y, w, h, title) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(7,12,22,.72)';
+  ctx.strokeStyle = 'rgba(130,170,255,.28)'; ctx.lineWidth = 1;
+  roundRect(x, y, w, h, 12); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = 'rgba(147,164,196,.95)';
+  ctx.font = '700 10px "Segoe UI",sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText(title, x + 11, y + 9);
+  ctx.restore();
+  return { x, y, w, h };
+}
+function drawLoopInset() {
+  const pw = 190, ph = 196;
+  const p = insetPanel(W - pw - 16, 56, pw, ph, 'SIDE VIEW · the vertical loop');
+  const cx = p.x + pw / 2, cy = p.y + 40 + 66, rr = 60;
+  const f = S.info || forces(S.b.r, S.b.v, S.b.phi, S.b.psi);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(150,165,195,.35)'; ctx.lineWidth = 5;
+  ctx.beginPath(); ctx.arc(cx, cy, rr, 0, TAU); ctx.stroke();
+  ctx.strokeStyle = 'rgba(200,215,240,.55)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(cx, cy, rr, 0, TAU); ctx.stroke();
+  /* the car, placed by its real height above the bottom */
+  const hy = -Math.sin(S.b.phi) * rr;
+  const hx = Math.cos(S.b.phi) * rr;
+  const col = S.b.contact ? '#4dd4ff' : '#ff6b81';
+  glowDot(cx - hx, cy + hy, 5.5, col, '', '');
+  /* gravity at the car */
+  if (S.g > 0.05) arrow(cx - hx, cy + hy, cx - hx, cy + hy + 18, '#a970ff', 1.8);
+  /* the top marker: it turns red when the track would have to pull */
+  const gN = f.extra.Nreq != null ? f.extra.Nreq : 0;
+  ctx.strokeStyle = gN <= 0 ? 'rgba(255,107,129,.9)' : 'rgba(255,107,129,.35)';
+  ctx.setLineDash([4, 4]); ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.moveTo(cx - rr - 10, cy - rr); ctx.lineTo(cx + rr + 10, cy - rr); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+  ctx.save();
+  ctx.font = '600 10.5px "Segoe UI",sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#93a4c4';
+  ctx.fillText('height  h = ' + loopHeight(S.b.phi).toFixed(1) + ' m', p.x + 11, p.y + 158);
+  ctx.fillStyle = S.b.contact && gN > 0 ? '#3ddc97' : '#ff6b81';
+  ctx.fillText('normal N = ' + gN.toFixed(1) + ' N', p.x + 11, p.y + 172);
+  ctx.restore();
+}
+function drawBankInset() {
+  const pw = 208, ph = 168;
+  const p = insetPanel(W - pw - 16, 56, pw, ph, 'CROSS SECTION · banked road');
+  const th = clamp(bankAngle(), -1.2, 1.2);
+  const bx = p.x + 58, by = p.y + 118, L = 76;
+  ctx.save();
+  /* ground */
+  ctx.strokeStyle = 'rgba(150,165,195,.45)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(p.x + 16, by + 20); ctx.lineTo(p.x + pw - 16, by + 20); ctx.stroke();
+  /* the banked surface, outer edge raised */
+  ctx.save();
+  ctx.translate(bx, by); ctx.rotate(-th);
+  ctx.strokeStyle = 'rgba(200,215,240,.8)'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(-L / 2, 0); ctx.lineTo(L / 2, 0); ctx.stroke();
+  ctx.restore();
+  /* the body on the surface */
+  const sx = bx + Math.cos(th) * 6, sy = by - Math.sin(th) * 6;
+  glowDot(sx, sy - 8, 7, '#4dd4ff', '', '');
+  /* normal, weight, friction */
+  const nx = -Math.sin(th), ny = -Math.cos(th);
+  arrow(sx, sy - 8, sx + nx * 44, sy - 8 + ny * 44, '#4dd4ff', 2.4);
+  arrow(sx, sy - 8, sx, sy + 42, '#a970ff', 2.2);
+  arrow(sx, sy - 8, sx + Math.cos(th) * 30, sy - 8 - Math.sin(th) * 30, '#ffb547', 1.8);
+  /* the angle arc */
+  ctx.strokeStyle = 'rgba(77,212,255,.8)'; ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.arc(bx, by, 24, -th - 0.0, 0); ctx.stroke();
+  ctx.strokeStyle = 'rgba(147,164,196,.5)'; ctx.setLineDash([3, 3]); ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx, by - 30); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+  ctx.save();
+  ctx.font = '600 10.5px "Segoe UI",sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillStyle = '#93a4c4';
+  ctx.fillText('θ = ' + S.theta.toFixed(0) + '°', p.x + 11, p.y + 30);
+  ctx.fillStyle = '#3ddc97';
+  ctx.fillText('v_ideal = ' + idealBank().toFixed(1) + ' m/s', p.x + 11, p.y + 140);
+  ctx.restore();
+}
+function drawScaleBar() {
+  const target = 60 / SC;                     /* aim for a ~60 px bar */
+  const nice = [1, 2, 5, 10, 20, 50].reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a, 1);
+  const px = nice * SC;
+  const x0 = CX - px / 2, y0 = H - 26;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(230,237,248,.55)'; ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(x0, y0 - 5); ctx.lineTo(x0, y0 + 5);
+  ctx.moveTo(x0, y0); ctx.lineTo(x0 + px, y0);
+  ctx.moveTo(x0 + px, y0 - 5); ctx.lineTo(x0 + px, y0 + 5);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(230,237,248,.7)'; ctx.font = '600 10.5px "Segoe UI",sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText(nice + ' m', CX, y0 - 6);
+  ctx.restore();
+}
+
+function drawScene() {
+  layout();
+  drawBackdrop();
+  drawPath();
+  if (S.show.target && S.mode !== 'tether') wcircle(S.r, 'rgba(61,220,151,.34)', 1.3, true);
+  drawTrail();
+  drawBody();
+  drawScaleBar();
+  if (S.show.inset && S.mode === 'loop') drawLoopInset();
+  if (S.show.inset && S.mode === 'bank') drawBankInset();
+}
+
+/* ------------------------------------------------------------ pointer */
+function toScreen(e) {
+  const r = cv.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+cv.addEventListener('pointerdown', e => {
+  const b = S.b;
+  const bx = WX(b.r * Math.cos(b.phi)), by = WY(b.r * Math.sin(b.phi));
+  const p = toScreen(e);
+  if (Math.hypot(p.x - bx, p.y - by) < 34) {
+    S.drag = { x0: e.clientX, y0: e.clientY };
+    cv.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  }
+});
+cv.addEventListener('pointermove', e => {
+  if (!S.drag) return;
+  const d = Math.hypot(e.clientX - S.drag.x0, e.clientY - S.drag.y0);
+  setSlider('spd', clamp(1 + d / 11, V_LO, V_HI));
+});
+const endDrag = () => { S.drag = null; };
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  setSlider('rad', S.r * (e.deltaY < 0 ? 1.08 : 0.926));
+}, { passive: false });
+/* =================================================================== */
+/*  READOUT PANELS                                                      */
+/*  Metric rows are built ONCE per panel. Rebuilding them every frame   */
+/*  would swap the DOM out from under the pointer, so a click on a "?"  */
+/*  button could never complete (mousedown and mouseup on different     */
+/*  elements).                                                           */
+/* =================================================================== */
+const MROWS = [
+  { id: 'rAct', k: 'Actual radius r', u: 'm', c: '#4dd4ff', key: 'acc' },
+  { id: 'rTgt', k: 'Target radius', u: 'm', c: '#3ddc97' },
+  { id: 'vv', k: 'Speed v', u: 'm/s', c: '#3ddc97', key: 'omega' },
+  { id: 'om', k: 'Angular velocity &omega;', u: 'rad/s', c: '#a970ff' },
+  { id: 'per', k: 'Period T = 2&pi;r/v', u: 's', c: '#a970ff', key: 'period' },
+  { id: 'rpm', k: 'Rotation rate', u: 'rpm', c: '#a970ff' },
+  { id: 'acc', k: 'Centripetal accel v&sup2;/r', u: 'm/s&sup2;', c: '#ff5cc8', key: 'acc' },
+  { id: 'Fneed', k: 'Required F = mv&sup2;/r', u: 'N', c: '#4dd4ff', key: 'fc' },
+  { id: 'Fapp', k: 'Applied inward F', u: 'N', c: '#ff5cc8' },
+  { id: 'Fav', k: 'Max available F', u: 'N', c: '#ffb547', key: 'friction' },
+  { id: 'gf', k: 'Load factor v&sup2;/rg', u: 'g', c: '#ffb547', key: 'gforce' },
+  { id: 'st', k: 'State', u: '', c: '#e6edf8', key: 'cut' }
+];
+const MODE_ROWS = {
+  tether: [
+    { id: 'xLen', k: 'String length L', u: 'm', c: '#3ddc97', key: 'tension' },
+    { id: 'xT', k: 'Tension T', u: 'N', c: '#4dd4ff', key: 'tension' },
+    { id: 'xTW', k: 'Tension / weight', u: '', c: '#ffb547' },
+    { id: 'xW', k: 'Work by inward force', u: 'J', c: '#a970ff', key: 'work' }
+  ],
+  flat: [
+    { id: 'xN', k: 'Normal force N = mg', u: 'N', c: '#4dd4ff' },
+    { id: 'xMu', k: 'Friction ceiling &mu;mg', u: 'N', c: '#ffb547', key: 'friction' },
+    { id: 'xVmax', k: 'Grip limit &radic;(g&mu;r)', u: 'm/s', c: '#3ddc97', key: 'friction' },
+    { id: 'xMargin', k: 'Speed vs grip limit', u: '%', c: '#e6edf8' }
+  ],
+  bank: [
+    { id: 'xTh', k: 'Bank angle &theta;', u: '&deg;', c: '#e6edf8', key: 'bank' },
+    { id: 'xN', k: 'Normal force mg/cos&theta;', u: 'N', c: '#4dd4ff' },
+    { id: 'xVi', k: 'Ideal speed &radic;(rgtan&theta;)', u: 'm/s', c: '#3ddc97', key: 'bank' },
+    { id: 'xWin', k: 'Friction-free window', u: 'm/s', c: '#ffb547' },
+    { id: 'xMargin', k: 'Friction margin', u: '%', c: '#e6edf8' }
+  ],
+  loop: [
+    { id: 'xH', k: 'Height above the bottom', u: 'm', c: '#e6edf8' },
+    { id: 'xN', k: 'Normal force N', u: 'N', c: '#4dd4ff', key: 'loop' },
+    { id: 'xNeedTop', k: 'Speed needed here', u: 'm/s', c: '#ffb547', key: 'loop' },
+    { id: 'xMin', k: 'Min bottom speed &radic;5gr', u: 'm/s', c: '#3ddc97', key: 'loop' },
+    { id: 'xE', k: 'Mechanical energy', u: 'J', c: '#a970ff', key: 'energy' }
+  ]
+};
+function rowHTML(d) {
+  return `<div class="metric"><span class="k"><span style="width:8px;height:8px;border-radius:2px;background:${d.c};display:inline-block"></span>${d.k}${d.key ? infoBtn(d.key) : ''}</span>` +
+         `<span class="v" id="${d.id}_w" style="color:${d.c}"><span id="${d.id}_v">&mdash;</span><span class="u" id="${d.id}_u">${d.u}</span></span></div>`;
+}
+function renderMetrics(hostId, defs) {
+  const host = document.getElementById(hostId);
+  if (host) host.innerHTML = defs.map(rowHTML).join('');
+}
+const CELLS = {};
+function setM(id, v, u, color) {
+  const cell = CELLS[id] || (CELLS[id] = {
+    v: document.getElementById(id + '_v'),
+    u: document.getElementById(id + '_u'),
+    w: document.getElementById(id + '_w')
+  });
+  if (!cell.v) return;
+  let s = String(v);
+  if (/NaN|Infinity/.test(s)) { s = '—'; if (u !== undefined && cell.u) cell.u.textContent = ''; }
+  else if (u !== undefined && cell.u) cell.u.textContent = u || '';
+  if (cell.v.textContent !== s) cell.v.textContent = s;
+  if (color && cell.w && cell.w.style.color !== color) cell.w.style.color = color;
+}
+const num = (v, d) => (isFinite(v) ? v.toFixed(d) : '—');
+
+/* --------------------------------------------------------------- paint */
+let lastPaint = 0;
+function paint(now) {
+  if (now - lastPaint < 70) return;
+  lastPaint = now;
+
+  const b = S.b, m = S.m;
+  const f = S.info || forces(b.r, b.v, b.phi, b.psi);
+  const r = Math.max(b.r, 0.05), v = Math.max(b.v, 0.05);
+  const a = v * v / r;
+  const need = m * a;
+  const om = v / r;
+  const T = TAU / om;
+
+  setM('rAct', r.toFixed(2), 'm');
+  setM('rTgt', S.r.toFixed(2), 'm');
+  setM('vv', v.toFixed(2), 'm/s');
+  setM('om', om.toFixed(3), 'rad/s');
+  setM('per', v > 0.08 ? T.toFixed(2) : '—', 's');
+  setM('rpm', v > 0.08 ? (60 / T).toFixed(2) : '—', 'rpm');
+  setM('acc', a.toFixed(2), 'm/s²');
+  setM('Fneed', need.toFixed(2), 'N');
+  setM('Fapp', f.Fin.toFixed(2), 'N', needRatio(f) > 1 ? '#ffb547' : '#ff5cc8');
+  setM('Fav', f.avail == null ? '—' : f.avail.toFixed(2), 'N');
+  setM('gf', S.g > 0.05 ? (a / S.g).toFixed(2) : '—', 'g');
+
+  const stTxt = { hold: 'holding the circle', taut: 'string taut · ideal circle', slack: 'string slack · flying', slip: 'SKIDDING outward', out: 'climbing the bank', in: 'sliding inwards', roll: 'on the track', fly: 'AIRBORNE (no contact)', cut: 'inward force removed' }[f.state] || f.state;
+  const stCol = { hold: '#3ddc97', taut: '#3ddc97', roll: '#3ddc97', slack: '#ffb547', slip: '#ff6b81', out: '#ff6b81', in: '#ff6b81', fly: '#ff6b81', cut: '#ff6b81' }[f.state] || '#e6edf8';
+  setM('st', stTxt, '', stCol);
+
+  if (S.mode === 'tether') {
+    setM('xLen', S.r.toFixed(2), 'm');
+    setM('xT', f.Fin.toFixed(2), 'N', f.Fin > 0.05 ? '#4dd4ff' : '#ffb547');
+    setM('xTW', m * S.g > 0.05 ? (f.Fin / (m * S.g)).toFixed(2) : '—', '');
+    setM('xW', (S.work || 0).toFixed(3), 'J');
+  }
+  if (S.mode === 'flat') {
+    setM('xN', (m * S.g).toFixed(2), 'N');
+    setM('xMu', (S.mu * m * S.g).toFixed(2), 'N');
+    const vmax = gripMaxV();
+    setM('xVmax', vmax.toFixed(2), 'm/s');
+    setM('xMargin', vmax > 0.05 ? (100 * v / vmax).toFixed(0) : '∞', '%', vmax > 0.05 && v > vmax ? '#ff6b81' : '#3ddc97');
+  }
+  if (S.mode === 'bank') {
+    setM('xTh', S.theta.toFixed(0), '°');
+    setM('xN', (m * S.g / Math.cos(clamp(bankAngle(), -1.4, 1.4))).toFixed(2), 'N');
+    setM('xVi', idealBank().toFixed(2), 'm/s');
+    setM('xWin', bankMinV().toFixed(1) + ' – ' + bankMaxV().toFixed(1), 'm/s');
+    const span = Math.max(1e-6, bankMaxV() - bankMinV());
+    const margin = 100 * (1 - Math.abs(v - idealBank()) / (span / 2));
+    setM('xMargin', margin.toFixed(0), '%', margin >= 0 ? '#3ddc97' : '#ff6b81');
+  }
+  if (S.mode === 'loop') {
+    setM('xH', loopHeight(b.phi).toFixed(2), 'm');
+    setM('xN', (f.extra.Nreq != null ? f.extra.Nreq : 0).toFixed(2), 'N',
+      f.extra.Nreq > 0.05 ? '#4dd4ff' : '#ff6b81');
+    setM('xNeedTop', Math.sqrt(Math.max(0, S.g * S.r)).toFixed(2), 'm/s');
+    setM('xMin', loopMinBottom().toFixed(2), 'm/s');
+    setM('xE', (0.5 * m * v * v + m * S.g * loopHeight(b.phi)).toFixed(1), 'J');
+  }
+
+  verdict(f, r, v, a, need);
+  drawGraphs();
+}
+
+function verdict(f, r, v, a, need) {
+  const el = document.getElementById('verdict');
+  if (!el) return;
+  const m = S.m;
+  const chk = Math.abs(r - S.r);
+  const off = (S.mode === 'flat' || S.mode === 'bank') && chk > 2.2;
+  const offNote = off ? ' <b>It has left the road</b> (the road is at ' + S.r.toFixed(1) +
+    ' m and it is now holding ' + r.toFixed(1) + ' m), so it is no longer on the surface this corner was built for.' : '';
+  if (S.cut) {
+    el.className = 'verdict bad';
+    el.innerHTML = '<b>Inward force removed.</b> The body keeps its speed and travels in a straight line — the tangent to the circle it was on. Curvature requires force; with none there is no curve. Switch the force back on to see the path bend again.';
+    return;
+  }
+  if (S.g < 0.05 && (S.mode === 'flat' || S.mode === 'bank')) {
+    el.className = 'verdict warn';
+    el.innerHTML = '<b>Zero gravity.</b> With no weight there is no normal force, and without a normal force there is no friction — so nothing is left to push the body towards the centre. It flies off along the tangent.';
+    return;
+  }
+  if (S.mode === 'tether') {
+    if (f.state === 'slack') {
+      el.className = 'verdict warn';
+      el.innerHTML = '<b>The string has gone slack.</b> The ball is at ' + r.toFixed(2) + ' m but the string is ' + S.r.toFixed(2) +
+        ' m long, so the string cannot pull: tension is zero and the ball is on a straight line. Pull the string back in (scroll) and it will tauten and start turning again.';
+      return;
+    }
+    el.className = chk < 0.02 ? 'verdict good' : 'verdict warn';
+    el.innerHTML = '<b>' + (chk < 0.02 ? 'Ideal circle.' : 'Converging.') + '</b> The tension is ' + f.Fin.toFixed(1) +
+      ' N, exactly what m v²/r = ' + need.toFixed(1) + ' N asks for, and the ball stays ' + chk.toFixed(3) +
+      ' m from the target circle. Because tension is perpendicular to the motion it does no work: the speed never changes.';
+    return;
+  }
+  if (S.mode === 'flat') {
+    const vmax = gripMaxV();
+    if (S.mu < 1e-3) {
+      el.className = 'verdict bad';
+      el.innerHTML = '<b>No friction at all.</b> A flat road can only push straight up, so with μ = 0 there is nothing to provide m v²/r. The car leaves along the tangent.';
+      return;
+    }
+    if (f.state === 'slip') {
+      el.className = 'verdict bad';
+      el.innerHTML = '<b>Skidding.</b> The car needs ' + need.toFixed(1) + ' N to hold the circle but the tyres can only supply μmg = ' +
+        f.avail.toFixed(1) + ' N, so the radius grows and the car slides outward. The speed limit at this radius is <b>' +
+        vmax.toFixed(1) + ' m/s</b> — you are ' + (100 * v / vmax).toFixed(0) + '% of the way to it.';
+      return;
+    }
+    el.className = 'verdict good';
+    el.innerHTML = '<b>Holding.</b> Friction supplies ' + f.Fin.toFixed(1) + ' N of the ' + need.toFixed(1) +
+      ' N required, which is ' + (100 * f.Fin / Math.max(need, 1e-6)).toFixed(0) + '% of the μmg ceiling (' +
+      f.avail.toFixed(1) + ' N). At this grip the corner tops out at <b>' + vmax.toFixed(1) + ' m/s</b>. The car feels <b>' +
+      (a / Math.max(S.g, 1e-6)).toFixed(1) + ' g</b> of lateral load, all of it from friction.' + offNote;
+    return;
+  }
+  if (S.mode === 'bank') {
+    const vi = idealBank(), lo = bankMinV(), hi = bankMaxV();
+    if (f.state === 'out') {
+      el.className = 'verdict bad';
+      el.innerHTML = '<b>Too fast — climbing the bank.</b> At ' + v.toFixed(1) + ' m/s the corner needs ' + need.toFixed(1) +
+        ' N but the road can only ever give ' + f.extra.fmax.toFixed(1) + ' N, so the car runs up the ' + S.theta.toFixed(0) +
+        '° banking and skids outward. The friction-free window here is <b>' + lo.toFixed(1) + ' – ' + hi.toFixed(1) + ' m/s</b>.' + offNote;
+      return;
+    }
+    if (f.state === 'in') {
+      el.className = 'verdict bad';
+      el.innerHTML = '<b>Too slow — sliding inwards.</b> At ' + v.toFixed(1) + ' m/s the road pushes in harder (' +
+        f.extra.fmin.toFixed(1) + ' N) than the corner needs (' + need.toFixed(1) + ' N), so the car slides down the banking toward the centre and spirals in.' + offNote;
+      return;
+    }
+    el.className = 'verdict good';
+    el.innerHTML = '<b>Holding the banked corner.</b> The normal force alone provides the inward push; friction only has to make up ' +
+      Math.abs(f.extra.fmax - need).toFixed(1) + ' N. The design speed is <b>v_ideal = √(rgtanθ) = ' + vi.toFixed(1) +
+      ' m/s</b>, and the friction-free window runs from ' + lo.toFixed(1) + ' to ' + hi.toFixed(1) + ' m/s — banking buys tolerance, not just grip.' + offNote;
+    return;
+  }
+  /* loop */
+  const vmin = loopMinBottom(), needHere = Math.sqrt(Math.max(0, S.g * S.r));
+  if (f.state === 'fly') {
+    el.className = 'verdict bad';
+    el.innerHTML = '<b>Lost contact.</b> The body is on a ballistic arc: it would need the track to <em>pull</em> it inward (N ≤ 0), and a surface can only push. That happens once v² drops below gr — here that means falling below ' +
+      needHere.toFixed(1) + ' m/s. It will reattach when it meets the track again.';
+    return;
+  }
+  const topish = Math.abs(Math.sin(S.b.phi)) > 0.985;
+  if (topish && (f.extra.Nreq || 0) < 0.25 * Math.max(need, 1e-6)) {
+    el.className = 'verdict warn';
+    el.innerHTML = '<b>At the top, on a knife edge.</b> N = ' + (f.extra.Nreq || 0).toFixed(2) +
+      ' N — the car is nearly weightless at the top of the loop, and a hair less speed will make it leave the track. ' +
+      'The minimum entrance speed is √(5gr) = <b>' + vmin.toFixed(1) + ' m/s</b>.';
+    return;
+  }
+  el.className = 'verdict good';
+  el.innerHTML = '<b>On the track.</b> At ' + loopHeight(S.b.phi).toFixed(1) + ' m the speed is ' + v.toFixed(1) +
+    ' m/s, so the circular motion needs ' + need.toFixed(1) + ' N. Gravity already points inward here, contributing ' +
+    (m * S.g * Math.sin(S.b.phi)).toFixed(1) + ' N, and the track supplies the remaining <b>' + (f.extra.Nreq || 0).toFixed(1) +
+    ' N</b> as the normal force. Entered at least √(5gr) = <b>' + vmin.toFixed(1) + ' m/s</b>.';
+}
+
+/* --------------------------------------------------------------- graph */
+function multiGraph(id, series, unit) {
+  const g = document.getElementById(id); if (!g) return;
+  const r = g.getBoundingClientRect(), dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(80, r.width), h = Math.max(60, r.height);
+  if (g.width !== Math.round(w * dpr)) { g.width = Math.round(w * dpr); g.height = Math.round(h * dpr); }
+  const c = g.getContext('2d');
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, w, h);
+
+  let max = 1e-9;
+  for (const s of series) for (const val of S.hist[s.key]) if (isFinite(val)) max = Math.max(max, val);
+  max = max <= 0 ? 1 : max * 1.15;
+
+  c.strokeStyle = 'rgba(120,150,210,.10)'; c.lineWidth = 1;
+  for (let i = 1; i < 4; i++) { c.beginPath(); c.moveTo(0, h * i / 4); c.lineTo(w, h * i / 4); c.stroke(); }
+  c.strokeStyle = 'rgba(120,150,210,.26)';
+  c.beginPath(); c.moveTo(0, h - 5); c.lineTo(w, h - 5); c.stroke();
+
+  c.font = '9.5px Consolas,monospace'; c.fillStyle = 'rgba(147,164,196,.9)';
+  c.textAlign = 'left'; c.textBaseline = 'top';
+  c.fillText(max.toFixed(max < 10 ? 1 : 0) + ' ' + unit, 5, 4);
+  c.fillText('0', 5, h - 14);
+  c.textAlign = 'right';
+  c.fillText('last ' + (S.hist.t.length * HSTEP).toFixed(1) + ' s', w - 5, h - 14);
+
+  for (const s of series) {
+    const arr = S.hist[s.key];
+    if (arr.length < 2) continue;
+    c.strokeStyle = s.color; c.lineWidth = 2; c.lineJoin = 'round';
+    if (s.dash) c.setLineDash([5, 4]);
+    c.beginPath();
+    let pen = false;
+    for (let i = 0; i < arr.length; i++) {
+      const val = arr[i];
+      if (!isFinite(val)) { pen = false; continue; }
+      const X = 4 + (i / (arr.length - 1)) * (w - 8);
+      const Y = h - 5 - clamp(val / max, 0, 1) * (h - 22);
+      if (!pen) { c.moveTo(X, Y); pen = true; } else c.lineTo(X, Y);
+    }
+    c.stroke();
+    c.setLineDash([]);
+  }
+}
+function drawGraphs() {
+  multiGraph('gR', [
+    { key: 'ra', color: '#4dd4ff' },
+    { key: 'rt', color: '#3ddc97', dash: true }
+  ], 'm');
+  const hasAvail = S.mode === 'flat' || S.mode === 'bank';
+  const series = [
+    { key: 'fa', color: '#ff5cc8' },
+    { key: 'fr', color: '#4dd4ff', dash: true }
+  ];
+  if (hasAvail) series.push({ key: 'fav', color: '#ffb547', dash: true });
+  multiGraph('gF', series, 'N');
+}
+function pushHistory() {
+  const b = S.b;
+  const f = S.info || forces(b.r, b.v, b.phi, b.psi);
+  const H = S.hist;
+  H.t.push(S.t);
+  H.ra.push(b.r);
+  H.rt.push(S.r);
+  H.fa.push(f.Fin);
+  H.fr.push(S.m * b.v * b.v / Math.max(b.r, 0.05));
+  H.fav.push(f.avail == null ? NaN : f.avail);
+  if (H.t.length > 700) { H.t.shift(); H.ra.shift(); H.rt.shift(); H.fa.shift(); H.fr.shift(); H.fav.shift(); }
+}
+
+/* =================================================================== */
+/*  MAIN LOOP                                                           */
+/* =================================================================== */
+let last = performance.now(), acc = 0, histAcc = 0;
+const DT = 1 / 240, HSTEP = 0.02;
+function loop(now) {
+  const wall = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  try { frame(wall); } catch (err) { showFatal(err.message); console.error(err); }
+  requestAnimationFrame(loop);
+}
+function frame(wall) {
+  if (S.playing) {
+    acc += wall * S.speed;
+    let guard = 0;
+    while (acc >= DT && guard++ < 90) {
+      stepAll(DT);
+      acc -= DT;
+      histAcc += DT;
+      if (histAcc >= HSTEP) { histAcc = 0; pushHistory(); }
+    }
+  } else acc = 0;
+
+  drawScene();
+  paint(performance.now());
+}
+function showFatal(msg) {
+  let el = document.getElementById('fatal');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'fatal';
+    el.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:999;max-width:92vw;' +
+      'background:rgba(60,10,20,.95);border:1px solid #ff6b81;color:#ffd7de;padding:10px 14px;border-radius:10px;' +
+      'font:12.5px/1.5 Consolas,monospace;white-space:pre-wrap';
+    document.body.appendChild(el);
+  }
+  el.textContent = 'Sim error: ' + msg;
+}
+window.addEventListener('error', e => showFatal(e.message));
+
+/* ------------------------------------------------------------- startup */
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    enterMode(t.dataset.mode);
+  };
+});
+document.addEventListener('keydown', e => {
+  if (e.target && /input|textarea/i.test(e.target.tagName)) return;
+  if (e.code === 'Space') { e.preventDefault(); document.getElementById('btnPlay').click(); }
+  if (e.key === 'r' || e.key === 'R') restart();
+  if (e.key === 'c' || e.key === 'C') setCut(!S.cut);
+});
+
+resize();
+Object.assign(S, MODE_DEFAULTS[S.mode]);
+buildPanels();
+setupMode(true);
+if (window.ResizeObserver) new ResizeObserver(resize).observe(elStage);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
